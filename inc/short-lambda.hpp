@@ -249,20 +249,20 @@ namespace short_lambda {
 
   inline namespace factory {
     template < std::size_t idx >
-    struct copy_projector_t {
+    struct forwarding_projector_t {
       template < class... Ts >
       constexpr static auto operator( )( Ts&&... args )
-          SL_one_liner_no_ret( std::get< idx >( std::tuple<Ts...>{ std::forward< Ts >( args )... } ) )
+          SL_one_liner_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
     };
 
     template < std::size_t idx >
     struct ref_projector_t {
       template < class... Ts >
-      constexpr static auto operator( )( Ts&&... args )
-          SL_one_liner( std::get< idx >( std::tuple<Ts...>{ std::forward< Ts >( args )... } ) )
+      constexpr static auto operator( )( Ts&... args )
+          SL_one_liner( *std::get< idx >( std::tuple< Ts*... >{ &args... } ) )
     };
 
-    struct delay_t {
+    struct forwarding_delay_t {
       template < class T >
       constexpr static auto operator( )( T&& value )
           SL_one_liner_declval( ( lambda {
@@ -277,24 +277,29 @@ namespace short_lambda {
                                 } );
     } constexpr static inline $_{ };
 
-    struct ref_t {
+    struct ref_delay_t {
       template < class T >
-      constexpr static decltype( auto ) operator( )( T& value ) {
-        return lambda{ [ v = &value ]< class Self >( this Self&& self, auto&&... ) noexcept(
-                           false ) -> decltype( auto ) { return ( *v ); } };
-      }
+      constexpr static auto operator( )( T& value )
+          SL_one_liner_declval( ( lambda {
+                                  [v = &std::declval< T& >( )]< class Self >( this Self&& self, auto&&... )
+                                      SL_one_liner( *std::declval< T* >( ) )
+                                } ),
+                                lambda {
+                                  [v = &value]< class Self >( this Self&& self, auto&&... )
+                                      SL_one_liner_declval( ( *std::declval< T* >( ) ), *v )
+                                } )
     } constexpr static inline $_${ };
 
-    [[maybe_unused]] static constexpr inline auto $0 = lambda{ copy_projector_t< 0 >{} };
-    [[maybe_unused]] static constexpr inline auto $1 = lambda{ copy_projector_t< 1 >{} };
-    [[maybe_unused]] static constexpr inline auto $2 = lambda{ copy_projector_t< 2 >{} };
-    [[maybe_unused]] static constexpr inline auto $3 = lambda{ copy_projector_t< 3 >{} };
-    [[maybe_unused]] static constexpr inline auto $4 = lambda{ copy_projector_t< 4 >{} };
-    [[maybe_unused]] static constexpr inline auto $5 = lambda{ copy_projector_t< 5 >{} };
-    [[maybe_unused]] static constexpr inline auto $6 = lambda{ copy_projector_t< 6 >{} };
-    [[maybe_unused]] static constexpr inline auto $7 = lambda{ copy_projector_t< 7 >{} };
-    [[maybe_unused]] static constexpr inline auto $8 = lambda{ copy_projector_t< 8 >{} };
-    [[maybe_unused]] static constexpr inline auto $9 = lambda{ copy_projector_t< 9 >{} };
+    [[maybe_unused]] static constexpr inline auto $0  = lambda{ forwarding_projector_t< 0 >{} };
+    [[maybe_unused]] static constexpr inline auto $1  = lambda{ forwarding_projector_t< 1 >{} };
+    [[maybe_unused]] static constexpr inline auto $2  = lambda{ forwarding_projector_t< 2 >{} };
+    [[maybe_unused]] static constexpr inline auto $3  = lambda{ forwarding_projector_t< 3 >{} };
+    [[maybe_unused]] static constexpr inline auto $4  = lambda{ forwarding_projector_t< 4 >{} };
+    [[maybe_unused]] static constexpr inline auto $5  = lambda{ forwarding_projector_t< 5 >{} };
+    [[maybe_unused]] static constexpr inline auto $6  = lambda{ forwarding_projector_t< 6 >{} };
+    [[maybe_unused]] static constexpr inline auto $7  = lambda{ forwarding_projector_t< 7 >{} };
+    [[maybe_unused]] static constexpr inline auto $8  = lambda{ forwarding_projector_t< 8 >{} };
+    [[maybe_unused]] static constexpr inline auto $9  = lambda{ forwarding_projector_t< 9 >{} };
 
     [[maybe_unused]] static constexpr inline auto $0$ = lambda{ ref_projector_t< 0 >{} };
     [[maybe_unused]] static constexpr inline auto $1$ = lambda{ ref_projector_t< 1 >{} };
