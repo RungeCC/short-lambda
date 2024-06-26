@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -15,18 +16,19 @@ namespace short_lambda::details {
   template < template < class > class U, class... Ts >
   concept any_satisfy = ( U< std::remove_cvref_t< Ts > >::value || ... );
 
-  template < class T, class U >
-  [[nodiscard]] constexpr auto&& forward_like( U&& x ) noexcept {
+  template < class T, class U > [[nodiscard]] constexpr auto&& forward_like( U&& x ) noexcept {
     constexpr bool is_adding_const = std::is_const_v< std::remove_reference_t< T > >;
-    if constexpr( std::is_lvalue_reference_v< T&& > )
-      if constexpr( is_adding_const )
+    if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+      if constexpr ( is_adding_const ) {
         return std::as_const( x );
-      else
+      } else {
         return static_cast< U& >( x );
-    else if constexpr( is_adding_const )
+      }
+    } else if constexpr ( is_adding_const ) {
       return std::move( std::as_const( x ) );
-    else
+    } else {
       return std::move( x );
+    }
   }
 } // namespace short_lambda::details
 
@@ -57,22 +59,11 @@ namespace short_lambda::details {
 
 
 namespace short_lambda {
-  template < class CallableT >
-  struct lambda {
-    CallableT storage;
+  template < class CallableT > struct lambda;
 
-    using type = CallableT;
+  template < class T > struct is_short_lambda: std::false_type { };
 
-    template < details::similar_to< lambda > Self, class... Ts >
-    [[maybe_unused]] constexpr auto operator( )( this Self&& self, Ts&&... args )
-        SL_one_liner( details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
-  };
-
-  template < class T >
-  struct is_short_lambda: std::false_type { };
-
-  template < class ClosureT >
-  struct is_short_lambda< lambda< ClosureT > >: std::true_type { };
+  template < class ClosureT > struct is_short_lambda< lambda< ClosureT > >: std::true_type { };
 
   enum class operators : unsigned int {
     plus = 0,
@@ -112,31 +103,46 @@ namespace short_lambda {
     bit_xor_with,
     bit_lshift_with,
     bit_rshift_with = 35, // ^ assignment
-    invoke          = 36,
+    function_call   = 36,
     comma,
-    conditional,
-    at = 39, // ^ misc
+    conditional = 38, // ^ misc
+    subscript   = 39,
+    address_of,
+    indirection,
+    object_member_access,
+    pointer_member_access,
+    object_member_access_of_pointer,
+    pointer_member_access_of_pointer, // ^ member access
+    static_cast_,
+    dynamic_cast_,
+    const_cast_,
+    reinterpret_cast_,
+    cast_,
+    sizeof_,
+    alignof_,
+    decltype_,
+    typeid_,
+    throw_,
+    noxecept_,
+    new_,
+    delete_,
+    co_await_,
   };
 
-  template < operators op >
-  struct operators_t {
+  template < operators op > struct operators_t {
     [[maybe_unused]] static inline constexpr operators value = op;
   };
 
-  template < class T >
-  struct is_operators_t: std::false_type { };
+  template < class T > struct is_operators_t: std::false_type { };
 
-  template < operators op >
-  struct is_operators_t< operators_t< op > >: std::true_type { };
+  template < operators op > struct is_operators_t< operators_t< op > >: std::true_type { };
 
-  template < class T >
-  struct every_operator_with_lambda_enabled: std::false_type { };
+  template < class T > struct every_operator_with_lambda_enabled: std::false_type { };
 
   template < details::satisfy< is_short_lambda > lambdaT >
   struct every_operator_with_lambda_enabled< lambdaT >: std::true_type { };
 
-  template < class T, details::satisfy< is_operators_t > OpT >
-  struct operator_with_lambda_enabled: std::false_type { };
+  template < class T, details::satisfy< is_operators_t > OpT > struct operator_with_lambda_enabled: std::false_type { };
 
   template < details::satisfy< every_operator_with_lambda_enabled > T, details::satisfy< is_operators_t > OpT >
   struct operator_with_lambda_enabled< T, OpT >: std::true_type { };
@@ -152,17 +158,17 @@ namespace short_lambda {
 
     SL_define_binary_op( plus, ( +) )
     SL_define_binary_op( minus, ( -) )
-    SL_define_binary_op( multiply, ( * ) )
+    SL_define_binary_op( multiply, (*) )
     SL_define_binary_op( divide, ( / ) )
     SL_define_binary_op( modulus, ( % ) )
 
-    SL_define_binary_op( bit_and, ( & ) )
+    SL_define_binary_op( bit_and, (&) )
     SL_define_binary_op( bit_or, ( | ) )
     SL_define_binary_op( bit_xor, ( ^) )
     SL_define_binary_op( bit_lshift, ( << ) )
     SL_define_binary_op( bit_rshift, ( >> ) )
 
-    SL_define_binary_op( logical_and, ( && ) )
+    SL_define_binary_op( logical_and, (&&) )
     SL_define_binary_op( logical_or, ( || ) )
 
     SL_define_binary_op( equal_to, ( == ) )
@@ -174,6 +180,8 @@ namespace short_lambda {
     SL_define_binary_op( compare_three_way, ( <=> ) )
 
     SL_define_binary_op( comma, (, ) )
+
+    SL_define_binary_op( pointer_member_access_of_pointer, (->*) )
 #undef SL_define_binary_op // undefine
 
 
@@ -188,8 +196,32 @@ namespace short_lambda {
     SL_define_unary_op( positate, ( +) )
     SL_define_unary_op( bit_not, ( ~) )
     SL_define_unary_op( logical_not, ( ! ) )
+    SL_define_unary_op( address_of, (&) )
+    SL_define_unary_op( indiraction, (*) )
 
 #undef SL_define_unary_op
+
+#define SL_define_unary_member_op( name, op )                                                                          \
+  struct name##_t {                                                                                                    \
+    template < class Oprand >                                                                                          \
+    constexpr static auto operator( )( Oprand&& arg )                                                                  \
+        SL_one_liner( std::forward< Oprand >( arg ).operator SL_remove_parenthesis( op )( ) )                          \
+  } constexpr static inline name{ };
+
+    SL_define_unary_member_op( object_member_access_of_pointer, (->) )
+    // SL_define_unary_member_op( object_member_access, (->) )
+
+#undef SL_define_unary_member_op
+
+    // some unoverloadable operator
+
+    struct pointer_member_access_t { // a.*b
+      template < class LHS, class RHS >
+      constexpr static auto operator( )( LHS&& lhs, RHS&& rhs )
+          SL_one_liner( std::forward< LHS >( lhs ).*( std::forward< RHS >( rhs ) ) )
+    } constexpr static inline pointer_member_access{ };
+
+
   } // namespace function_object
 
   inline namespace lambda_operators {
@@ -198,8 +230,8 @@ namespace short_lambda {
              details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >                    \
     requires details::any_satisfy< is_short_lambda, LHS, RHS >                                                         \
   auto operator SL_remove_parenthesis( op )( LHS&& lhs, RHS&& rhs ) SL_one_liner( lambda {                             \
-    [ lhs{ std::forward< LHS >( lhs ) },                                                                               \
-      rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args )                 \
+    [lhs{ std::forward< LHS >( lhs ) },                                                                                \
+     rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                   \
         SL_one_liner_declval( /*req*/ ( name( SL_forward_like_app( std::declval< LHS >( ) ),                           \
                                               SL_forward_like_app( std::declval< RHS >( ) ) ) ),                       \
                               name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )                         \
@@ -207,15 +239,15 @@ namespace short_lambda {
 
     SL_lambda_binary_operator( plus, ( +) )
     SL_lambda_binary_operator( minus, ( -) )
-    SL_lambda_binary_operator( multiply, ( * ) )
+    SL_lambda_binary_operator( multiply, (*) )
     SL_lambda_binary_operator( divide, ( / ) )
     SL_lambda_binary_operator( modulus, ( % ) )
-    SL_lambda_binary_operator( bit_and, ( & ) )
+    SL_lambda_binary_operator( bit_and, (&) )
     SL_lambda_binary_operator( bit_or, ( | ) )
     SL_lambda_binary_operator( bit_xor, ( ^) )
     SL_lambda_binary_operator( bit_lshift, ( << ) )
     SL_lambda_binary_operator( bit_rshift, ( >> ) )
-    SL_lambda_binary_operator( logical_and, ( && ) )
+    SL_lambda_binary_operator( logical_and, (&&) )
     SL_lambda_binary_operator( logical_or, ( || ) )
     SL_lambda_binary_operator( equal_to, ( == ) )
     SL_lambda_binary_operator( not_equal_to, ( != ) )
@@ -246,22 +278,30 @@ namespace short_lambda {
 
   } // namespace lambda_operators
 
+  template < class CallableT > struct lambda {
+    CallableT storage;
+
+    using type = CallableT;
+
+    template < details::similar_to< lambda > Self, class... Ts >
+    [[maybe_unused]] constexpr auto operator( )( this Self&& self, Ts&&... args )
+        SL_one_liner( details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
+  };
+
   inline namespace factory {
-    template < std::size_t idx >
-    struct forwarding_projector_t { // forwarding nth received argument
+    template < std::size_t idx > struct forwarding_projector_t { // forwarding construct nth received argument
       template < class... Ts >
       constexpr static auto operator( )( Ts&&... args )
           SL_one_liner_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
     };
 
-    template < std::size_t idx >
-    struct ref_projector_t { // receive lvalue references and ref to the nth argument
+    template < std::size_t idx > struct ref_projector_t { // receive lvalue references and ref to the nth argument
       template < class... Ts >
       constexpr static auto operator( )( Ts&... args )
-          SL_one_liner( *std::get< idx >( std::tuple< Ts*... >{ &args... } ) )
+          SL_one_liner( *std::get< idx >( std::tuple< Ts*... >{ std::addressof( args )... } ) )
     };
 
-    struct forwarding_delay_t { // forwarding received argument
+    struct forwarding_delay_t { // forwarding construct received argument
       template < class T >
       constexpr static auto operator( )( T&& value )
           SL_one_liner_declval( ( lambda {
@@ -284,7 +324,7 @@ namespace short_lambda {
                                       SL_one_liner( *std::declval< T* >( ) )
                                 } ),
                                 lambda {
-                                  [v = &value]< class Self >( this Self&& self, auto&&... )
+                                  [v = std::addressof( value )]< class Self >( this Self&& self, auto&&... )
                                       SL_one_liner_declval( ( *std::declval< T* >( ) ), *v )
                                 } )
     } constexpr static inline $_${ };

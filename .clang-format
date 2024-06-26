@@ -16,10 +16,11 @@ AlignEscapedNewlines: Right
 AlignOperands: Align
 AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: false
-AllowAllConstructorInitializersOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
+AllowBreakBeforeNoexceptSpecifier: OnlyWithParen
 AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
+AllowShortCompoundRequirementOnASingleLine: true
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: true
@@ -27,10 +28,12 @@ AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: 'Yes'
 BinPackArguments: false
 BinPackParameters: false
 BitFieldColonSpacing: After
+BreakAdjacentStringLiterals: true
+BreakAfterAttributes: Leave
+# BreakAfterReturnType: #v19
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Attach
 BreakBeforeConceptDeclarations: true
@@ -38,13 +41,13 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 BreakStringLiterals: true
+# BreakTemplateDeclarations: MultiLine #v19
 ColumnLimit: 120
 CommentPragmas: '^nobreak:'
 CompactNamespaces: true
 ConstructorInitializerIndentWidth: 2
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
-DeriveLineEnding: true
 EmptyLineAfterAccessModifier: Never # v13
 EmptyLineBeforeAccessModifier: LogicalBlock
 FixNamespaceComments: true
@@ -57,29 +60,49 @@ IndentCaseLabels: true
 IndentExternBlock: Indent
 IndentGotoLabels: false
 IndentPPDirectives: AfterHash
-# IndentRequiresClause: true # v15
+IndentRequiresClause: true # v15
 IndentWidth: 2
 IndentWrappedFunctionNames: true
-#InsertBraces: true # v15
-InsertTrailingCommas: None
+InsertBraces: true # v15
+InsertNewlineAtEOF: true
+InsertTrailingCommas: Wrapped
+IntegerLiteralSeparator:
+  Binary: 0
+  Decimal: 3
+  Hex: 0
 KeepEmptyLinesAtTheStartOfBlocks: false # v13
 LambdaBodyIndentation: Signature # v13
 Language: Cpp
+LineEnding: DeriveLF
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: All
+# penalties
+PenaltyBreakAssignment: 5
+PenaltyBreakBeforeFirstCallParameter: 5
+PenaltyBreakComment: 10
+PenaltyBreakOpenParenthesis: 20
+PenaltyBreakScopeResolution: 100 # really shall not break after ::!
+PenaltyBreakString: 5
+PenaltyBreakTemplateDeclaration: 0
+PenaltyExcessCharacter: 30
+PenaltyReturnTypeOnItsOwnLine: 10
 PPIndentWidth: 2 # v13
 PackConstructorInitializers: CurrentLine # v14
 PointerAlignment: Left
 QualifierAlignment: Custom # v14
 QualifierOrder: # v14
+  - constexpr
   - inline
+  - friend
   - static
   - type
   - const
   - volatile
 ReferenceAlignment: Left # v13
-RemoveBracesLLVM: true # v14
-# RequiresClausePosition: OwnLine # v15
+RemoveBracesLLVM: false # v14
+RemoveSemicolon: true
+RequiresClausePosition: OwnLine # v15
+RequiresExpressionIndentation: Keyword
 SeparateDefinitionBlocks: Leave # v14
 ShortNamespaceLines: 0 # v13
 SortIncludes: CaseSensitive
@@ -93,23 +116,32 @@ SpaceBeforeCaseColon: false
 SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: false
 SpaceBeforeInheritanceColon: false
-SpaceBeforeParens: Never
+SpaceBeforeParens: Custom
 SpaceBeforeParensOptions: # v14
-SpaceBeforeRangeBasedForLoopColon: false
-SpaceBeforeSquareBrackets: false
+  AfterControlStatements: true
+  AfterForeachMacros: true
+  AfterFunctionDeclarationName: false
+  AfterIfMacros: true
+  AfterOverloadedOperator: false
+  AfterPlacementOperator: true
+  AfterRequiresInClause: true
+  AfterRequiresInExpression: true
+  BeforeNonEmptyParentheses: false
 SpaceInEmptyBlock: true
-SpaceInEmptyParentheses: true
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: Always
-SpacesInCStyleCastParentheses: true
-SpacesInConditionalStatement: true
-SpacesInContainerLiterals: true
+SpacesInContainerLiterals: false
 SpacesInLineCommentPrefix: # v13
   Maximum: 1
   Minimum: 1
-SpacesInParentheses: true
+SpacesInParens: Custom
+SpacesInParensOptions:
+  InConditionalStatements: true
+  InEmptyParentheses: true
+  InCStyleCasts: false
+  Other: true
 SpacesInSquareBrackets: true
-Standard: c++20
+Standard: Latest
 StatementMacros:
   - SL_one_liner
   - SL_one_liner_bare
@@ -119,4 +151,5 @@ StatementMacros:
   - SL_lambda_unary_operator
   - SL_define_unary_op
   - SL_one_liner_no_ret
+  - SL_define_unary_member_op
 UseTab: Never
