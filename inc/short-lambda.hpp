@@ -249,10 +249,17 @@ namespace short_lambda {
 
   inline namespace factory {
     template < std::size_t idx >
-    struct projector_t {
+    struct copy_projector_t {
       template < class... Ts >
       constexpr static auto operator( )( Ts&&... args )
-          SL_one_liner_no_ret( std::get< idx >( std::make_tuple( std::forward< Ts >( args )... ) ) )
+          SL_one_liner_no_ret( std::get< idx >( std::tuple<Ts...>{ std::forward< Ts >( args )... } ) )
+    };
+
+    template < std::size_t idx >
+    struct ref_projector_t {
+      template < class... Ts >
+      constexpr static auto operator( )( Ts&&... args )
+          SL_one_liner( std::get< idx >( std::tuple<Ts...>{ std::forward< Ts >( args )... } ) )
     };
 
     struct delay_t {
@@ -278,16 +285,27 @@ namespace short_lambda {
       }
     } constexpr static inline $_${ };
 
-    [[maybe_unused]] static constexpr inline auto $0 = lambda{ projector_t< 0 >{} };
-    [[maybe_unused]] static constexpr inline auto $1 = lambda{ projector_t< 1 >{} };
-    [[maybe_unused]] static constexpr inline auto $2 = lambda{ projector_t< 2 >{} };
-    [[maybe_unused]] static constexpr inline auto $3 = lambda{ projector_t< 3 >{} };
-    [[maybe_unused]] static constexpr inline auto $4 = lambda{ projector_t< 4 >{} };
-    [[maybe_unused]] static constexpr inline auto $5 = lambda{ projector_t< 5 >{} };
-    [[maybe_unused]] static constexpr inline auto $6 = lambda{ projector_t< 6 >{} };
-    [[maybe_unused]] static constexpr inline auto $7 = lambda{ projector_t< 7 >{} };
-    [[maybe_unused]] static constexpr inline auto $8 = lambda{ projector_t< 8 >{} };
-    [[maybe_unused]] static constexpr inline auto $9 = lambda{ projector_t< 9 >{} };
+    [[maybe_unused]] static constexpr inline auto $0 = lambda{ copy_projector_t< 0 >{} };
+    [[maybe_unused]] static constexpr inline auto $1 = lambda{ copy_projector_t< 1 >{} };
+    [[maybe_unused]] static constexpr inline auto $2 = lambda{ copy_projector_t< 2 >{} };
+    [[maybe_unused]] static constexpr inline auto $3 = lambda{ copy_projector_t< 3 >{} };
+    [[maybe_unused]] static constexpr inline auto $4 = lambda{ copy_projector_t< 4 >{} };
+    [[maybe_unused]] static constexpr inline auto $5 = lambda{ copy_projector_t< 5 >{} };
+    [[maybe_unused]] static constexpr inline auto $6 = lambda{ copy_projector_t< 6 >{} };
+    [[maybe_unused]] static constexpr inline auto $7 = lambda{ copy_projector_t< 7 >{} };
+    [[maybe_unused]] static constexpr inline auto $8 = lambda{ copy_projector_t< 8 >{} };
+    [[maybe_unused]] static constexpr inline auto $9 = lambda{ copy_projector_t< 9 >{} };
+
+    [[maybe_unused]] static constexpr inline auto $0$ = lambda{ ref_projector_t< 0 >{} };
+    [[maybe_unused]] static constexpr inline auto $1$ = lambda{ ref_projector_t< 1 >{} };
+    [[maybe_unused]] static constexpr inline auto $2$ = lambda{ ref_projector_t< 2 >{} };
+    [[maybe_unused]] static constexpr inline auto $3$ = lambda{ ref_projector_t< 3 >{} };
+    [[maybe_unused]] static constexpr inline auto $4$ = lambda{ ref_projector_t< 4 >{} };
+    [[maybe_unused]] static constexpr inline auto $5$ = lambda{ ref_projector_t< 5 >{} };
+    [[maybe_unused]] static constexpr inline auto $6$ = lambda{ ref_projector_t< 6 >{} };
+    [[maybe_unused]] static constexpr inline auto $7$ = lambda{ ref_projector_t< 7 >{} };
+    [[maybe_unused]] static constexpr inline auto $8$ = lambda{ ref_projector_t< 8 >{} };
+    [[maybe_unused]] static constexpr inline auto $9$ = lambda{ ref_projector_t< 9 >{} };
   } // namespace factory
 
 } // namespace short_lambda
