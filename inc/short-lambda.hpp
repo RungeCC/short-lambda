@@ -249,20 +249,20 @@ namespace short_lambda {
 
   inline namespace factory {
     template < std::size_t idx >
-    struct forwarding_projector_t {
+    struct forwarding_projector_t { // forwarding nth received argument
       template < class... Ts >
       constexpr static auto operator( )( Ts&&... args )
           SL_one_liner_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
     };
 
     template < std::size_t idx >
-    struct ref_projector_t {
+    struct ref_projector_t { // receive lvalue references and ref to the nth argument
       template < class... Ts >
       constexpr static auto operator( )( Ts&... args )
           SL_one_liner( *std::get< idx >( std::tuple< Ts*... >{ &args... } ) )
     };
 
-    struct forwarding_delay_t {
+    struct forwarding_delay_t { // forwarding received argument
       template < class T >
       constexpr static auto operator( )( T&& value )
           SL_one_liner_declval( ( lambda {
@@ -277,7 +277,7 @@ namespace short_lambda {
                                 } );
     } constexpr static inline $_{ };
 
-    struct ref_delay_t {
+    struct ref_delay_t { // receive a lvalue reference and ref to it
       template < class T >
       constexpr static auto operator( )( T& value )
           SL_one_liner_declval( ( lambda {
