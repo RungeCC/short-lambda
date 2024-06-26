@@ -189,4 +189,5 @@ _deps
 .xmake/
 build/
 
-# End of https://www.toptal.com/developers/gitignore/api/xmake,visualstudiocode,cmake,c++,clion
+### cache
+.cache/
