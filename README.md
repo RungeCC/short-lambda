@@ -1,4 +1,4 @@
-== Short Lambda
+## Short Lambda
 
 - Inspired by Boost.Lambda2.
 - Currently, do not support assignment operators
