@@ -1,0 +1,122 @@
+### Author:  Runge
+### Version: clang-format@19.0.0git
+
+---
+BasedOnStyle: LLVM
+IndentWidth: 2
+---
+AccessModifierOffset: -2
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Right # v13
+AlignConsecutiveAssignments: AcrossEmptyLines
+AlignConsecutiveBitFields: AcrossEmptyLines
+AlignConsecutiveDeclarations: AcrossEmptyLines
+AlignConsecutiveMacros: AcrossEmptyLines
+AlignEscapedNewlines: Right
+AlignOperands: Align
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: 'Yes'
+BinPackArguments: false
+BinPackParameters: false
+BitFieldColonSpacing: After
+BreakBeforeBinaryOperators: All
+BreakBeforeBraces: Attach
+BreakBeforeConceptDeclarations: true
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+BreakStringLiterals: true
+ColumnLimit: 120
+CommentPragmas: '^nobreak:'
+CompactNamespaces: true
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 4
+Cpp11BracedListStyle: true
+DeriveLineEnding: true
+EmptyLineAfterAccessModifier: Never # v13
+EmptyLineBeforeAccessModifier: LogicalBlock
+FixNamespaceComments: true
+IfMacros: # v13
+  - 'Runge_If'
+IncludeBlocks: Regroup
+IndentAccessModifiers: false # v13
+IndentCaseBlocks: false
+IndentCaseLabels: true
+IndentExternBlock: Indent
+IndentGotoLabels: false
+IndentPPDirectives: AfterHash
+# IndentRequiresClause: true # v15
+IndentWidth: 2
+IndentWrappedFunctionNames: true
+#InsertBraces: true # v15
+InsertTrailingCommas: None
+KeepEmptyLinesAtTheStartOfBlocks: false # v13
+LambdaBodyIndentation: Signature # v13
+Language: Cpp
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: All
+PPIndentWidth: 2 # v13
+PackConstructorInitializers: CurrentLine # v14
+PointerAlignment: Left
+QualifierAlignment: Custom # v14
+QualifierOrder: # v14
+  - inline
+  - static
+  - type
+  - const
+  - volatile
+ReferenceAlignment: Left # v13
+RemoveBracesLLVM: true # v14
+# RequiresClausePosition: OwnLine # v15
+SeparateDefinitionBlocks: Leave # v14
+ShortNamespaceLines: 0 # v13
+SortIncludes: CaseSensitive
+SortUsingDeclarations: true
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: true
+SpaceAfterTemplateKeyword: true
+SpaceAroundPointerQualifiers: Default
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeInheritanceColon: false
+SpaceBeforeParens: Never
+SpaceBeforeParensOptions: # v14
+SpaceBeforeRangeBasedForLoopColon: false
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: true
+SpaceInEmptyParentheses: true
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: Always
+SpacesInCStyleCastParentheses: true
+SpacesInConditionalStatement: true
+SpacesInContainerLiterals: true
+SpacesInLineCommentPrefix: # v13
+  Maximum: 1
+  Minimum: 1
+SpacesInParentheses: true
+SpacesInSquareBrackets: true
+Standard: c++20
+StatementMacros:
+  - SL_one_liner
+  - SL_one_liner_bare
+  - SL_one_liner_declval
+  - SL_define_binary_op
+  - SL_lambda_binary_operator
+  - SL_lambda_unary_operator
+  - SL_define_unary_op
+  - SL_one_liner_no_ret
+UseTab: Never
