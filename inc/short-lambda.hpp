@@ -346,13 +346,23 @@ namespace short_lambda {
     } constexpr static inline alignof_{ };
 
     struct new_t {
-      /// @note: this operator can not work as expected, so we delete it
-      template < class... Ts > constexpr static auto operator( )( Ts&&... args ) = delete;
+      template < class T0, class... Ts, bool Array = false >
+      constexpr static auto operator( )( std::type_identity< T0 > arg0, Ts&&... args )
+          SL_one_liner( new T0{ std::forward< Ts >( args )... } )
     } constexpr static inline new_{ };
 
     struct delete_t {
-      /// @note: this operator can not work as expected, so we delete it
-      template < class Op > constexpr static auto operator( )( Op&& arg ) = delete;
+      template < bool Array = false, class Op >
+      constexpr static auto operator( )( Op&& arg )
+          noexcept( ( Array && noexcept( delete[] arg ) ) || ( noexcept( delete arg ) ) ) -> decltype( auto )
+        requires ( ( Array && requires { delete[] arg; } ) || ( requires { delete arg; } ) )
+      {
+        if constexpr ( Array ) {
+          delete[] arg;
+        } else {
+          delete arg;
+        }
+      }
     } constexpr static inline delete_{ };
 
     struct co_await_t {
