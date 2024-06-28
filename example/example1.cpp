@@ -43,7 +43,7 @@ int main( ) {
 
 
 
-  ( ($_( std::cin ) >> _$< int , 0> >> _$<int, 1>)).then( ( $_( std::cout ) << (_$< int, 0 > + _$<int, 1> * $0) << $_( ptr ) ) )(
+  (( $_( std::cin ) >> _$< int , 0> >> _$<int, 1>),  ( $_( std::cout ) << (_$< int, 0 > + _$<int, 1> * $0) << $_( ptr )  ))(
     23
   );
 }

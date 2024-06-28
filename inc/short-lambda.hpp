@@ -127,7 +127,7 @@ namespace short_lambda {
     noexcept_,
     new_,
     delete_,
-    co_await_ = 59, // ^ special
+    co_await_ = 59, // ^ special, v extra, provide by me
     then      = 60, // expression-equivalent to `(void)lhs, rhs`
   };
 
@@ -532,6 +532,64 @@ namespace short_lambda {
     SL_lambda_member_binary_op( right_shift_with, ( >>= ) )
 
 #undef SL_lambda_member_binary_op
+
+#define SL_lambda_member_cast_op_named( name )                                                                         \
+  template < class Target, class Lmb >                                                                                 \
+  constexpr auto name( this Lmb&& lmb, std::type_identity< Target > = { } ) SL_one_liner( ::short_lambda::lambda {     \
+    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_one_liner_declval(               \
+        ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ), std::type_identity< Target >{ } ) ),   \
+        function_object::name( SL_forward_like_app( lhs ), std::type_identity< Target >{ } ) )                         \
+  } );
+
+    SL_lambda_member_cast_op_named( const_cast_ )
+    SL_lambda_member_cast_op_named( static_cast_ )
+    SL_lambda_member_cast_op_named( dynamic_cast_ )
+    SL_lambda_member_cast_op_named( reinterpret_cast_ )
+    SL_lambda_member_cast_op_named( cstyle_cast )
+
+#undef SL_lambda_member_cast_op_named
+
+#define SL_lambda_member_unary_op_named( name )                                                                        \
+  template < class Lmb >                                                                                               \
+  constexpr auto name( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {                                         \
+    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )                                     \
+        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),              \
+                              function_object::name( SL_forward_like_app( lhs ) ) )                                    \
+  } );
+
+    SL_lambda_member_unary_op_named( throw_ )
+    SL_lambda_member_unary_op_named( decltype_ )
+    SL_lambda_member_unary_op_named( typeid_ )
+    SL_lambda_member_unary_op_named( sizeof_ )
+    SL_lambda_member_unary_op_named( alignof_ )
+    SL_lambda_member_unary_op_named( co_await_ )
+
+#undef SL_lambda_member_unary_op_named
+
+    template < class Lmb >
+    constexpr auto operator++( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval( ( function_object::pre_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                function_object::pre_increment( SL_forward_like_app( lhs ) ) )
+    } );
+    template < class Lmb >
+    constexpr auto operator++( this Lmb&& lmb, int ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval( ( function_object::post_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                function_object::post_increment( SL_forward_like_app( lhs ) ) )
+    } );
+    template < class Lmb >
+    constexpr auto operator--( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval( ( function_object::pre_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                function_object::pre_decrement( SL_forward_like_app( lhs ) ) )
+    } );
+    template < class Lmb >
+    constexpr auto operator--( this Lmb&& lmb, int ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval( ( function_object::post_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                function_object::post_decrement( SL_forward_like_app( lhs ) ) )
+    } );
   };
 
   inline namespace factory {

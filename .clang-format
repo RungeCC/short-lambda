@@ -155,4 +155,6 @@ StatementMacros:
   - SL_lambda_member_variadic_op
   - SL_lambda_member_binary_op
   - SL_lambda_member_binary_op_named
+  - SL_lambda_member_cast_op_named
+  - SL_lambda_member_unary_op_named
 UseTab: Never
