@@ -191,3 +191,10 @@ build/
 
 ### cache
 .cache/
+
+### idea and vim settings
+.idea/
+.vim
+
+### generate cmake files
+CMakeLists.txt
