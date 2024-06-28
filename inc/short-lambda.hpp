@@ -482,6 +482,56 @@ namespace short_lambda {
           SL_forward_like_app( lhs );
           return SL_forward_like_app( rhs );
         } } )
+
+#define SL_lambda_member_variadic_op( name )                                                                           \
+  template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > >... RHS >      \
+  constexpr auto name( this Lmb&& lmb, RHS&&... rhs ) SL_one_liner( ::short_lambda::lambda {                           \
+    [lhs{ std::forward< Lmb >( lmb ) },                                                                                \
+     ... rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )                                 \
+        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                  \
+                                                       SL_forward_like_app( std::declval< RHS >( ) )... ) ),           \
+                              function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs )... ) )     \
+  } );
+
+
+    SL_lambda_member_variadic_op( function_call )
+    SL_lambda_member_variadic_op( subscript )
+#undef SL_lambda_member_variadic_op
+
+#define SL_lambda_member_binary_op_named( name )                                                                       \
+  template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >         \
+  constexpr auto name( this Lmb&& lmb, RHS&& rhs ) SL_one_liner( ::short_lambda::lambda {                              \
+    [lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )  \
+        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                  \
+                                                       SL_forward_like_app( std::declval< RHS >( ) ) ) ),              \
+                              function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )        \
+  } );
+
+    SL_lambda_member_binary_op_named( assign_to ) // avoid overloading copy/move assign operator!
+
+#undef SL_lambda_member_binary_op_named
+
+#define SL_lambda_member_binary_op( name, op )                                                                         \
+  template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >         \
+  constexpr auto operator SL_remove_parenthesis( op )( this Lmb&& lmb,                                                 \
+                                                       RHS&&      rhs ) SL_one_liner( ::short_lambda::lambda {              \
+    [lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )  \
+        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                  \
+                                                       SL_forward_like_app( std::declval< RHS >( ) ) ) ),              \
+                              function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )        \
+  } );
+
+    SL_lambda_member_binary_op( add_to, ( += ) )
+    SL_lambda_member_binary_op( subtract_from, ( -= ) )
+    SL_lambda_member_binary_op( times_by, ( *= ) )
+    SL_lambda_member_binary_op( divide_by, ( /= ) )
+    SL_lambda_member_binary_op( bit_and_with, ( &= ) )
+    SL_lambda_member_binary_op( bit_or_with, ( |= ) )
+    SL_lambda_member_binary_op( bit_xor_with, ( ^= ) )
+    SL_lambda_member_binary_op( left_shift_with, ( <<= ) )
+    SL_lambda_member_binary_op( right_shift_with, ( >>= ) )
+
+#undef SL_lambda_member_binary_op
   };
 
   inline namespace factory {

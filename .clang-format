@@ -152,4 +152,7 @@ StatementMacros:
   - SL_define_unary_op
   - SL_one_liner_no_ret
   - SL_define_unary_member_op
+  - SL_lambda_member_variadic_op
+  - SL_lambda_member_binary_op
+  - SL_lambda_member_binary_op_named
 UseTab: Never

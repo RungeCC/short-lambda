@@ -22,6 +22,7 @@
       packages = with pkgs; [
         unzip          # for xmake repo
         clang-tools_18 # for clang-format and clangd
+        nodejs
       ];
 
       buildInputs = with pkgs; [
