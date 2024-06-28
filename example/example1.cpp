@@ -37,13 +37,16 @@ template < class T, std::size_t id = 0 > inline static storage_t< T > storage{ }
 
 template < class U, std::size_t id = 0 > constexpr inline static auto _$ = coprojector_t< U >{ }( storage< U, id > );
 
+template <auto x>
+struct K {};
+
 //
 int main( ) {
   auto ptr = static_cast< auto ( * )( std::basic_ostream< char >& )->std::basic_ostream< char >& >( std::endl );
 
+  K<$1+$2> a{};
 
-
-  (( $_( std::cin ) >> _$< int , 0> >> _$<int, 1>),  ( $_( std::cout ) << (_$< int, 0 > + _$<int, 1> * $0) << $_( ptr )  ))(
-    23
+  (( $_( std::cin ) >> _$< int , 0> >> _$<int, 1>).then ( $_( std::cout ) << (_$< int, 0 > + _$<int, 1> * $0) << $_( ptr )  ))(
+    3
   );
 }

@@ -106,14 +106,14 @@ namespace short_lambda {
     right_shift_with = 35, // ^ assignment
     function_call    = 36,
     comma,
-    conditional = 38, // ^ misc
+    conditional = 38, // ^ misc            // TBD
     subscript   = 39,
-    address_of  = 40,
-    indirection,
-    object_member_access,
-    pointer_member_access,
-    object_member_access_of_pointer,
-    pointer_member_access_of_pointer = 45, // ^ member access
+    address_of  = 40,                      // TBD
+    indirection,                           // TBD
+    object_member_access,                  // TBD
+    pointer_member_access,                 // TBD
+    object_member_access_of_pointer,       // TBD
+    pointer_member_access_of_pointer = 45, // ^ member access // TBD
     static_cast_                     = 46,
     dynamic_cast_,
     const_cast_,
@@ -125,8 +125,8 @@ namespace short_lambda {
     typeid_,
     throw_,
     noexcept_,
-    new_,
-    delete_,
+    new_,           // TBD
+    delete_,        // TBD
     co_await_ = 59, // ^ special, v extra, provide by me
     then      = 60, // expression-equivalent to `(void)lhs, rhs`
   };
