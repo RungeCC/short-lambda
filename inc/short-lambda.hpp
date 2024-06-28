@@ -128,6 +128,7 @@ namespace short_lambda {
     new_,
     delete_,
     co_await_ = 59, // ^ special
+    then      = 60, // expression-equivalent to `(void)lhs, rhs`
   };
 
   template < operators op > struct operators_t {
@@ -386,6 +387,20 @@ namespace short_lambda {
       }
     } constexpr static inline co_await_{ };
 
+    struct then_t {
+      template < class LHS, class RHS >
+      constexpr static auto operator( )( LHS&& lhs, RHS&& rhs )
+          noexcept( noexcept( lhs ) && noexcept( std::forward< RHS >( rhs ) ) ) -> decltype( auto )
+        requires requires {
+                   lhs;
+                   std::forward< RHS >( rhs );
+                 }
+      {
+        lhs;
+        return std::forward< RHS >( rhs );
+      }
+    } constexpr static inline then{ };
+
 
   } // namespace function_object
 
@@ -453,6 +468,20 @@ namespace short_lambda {
     template < details::similar_to< lambda > Self, class... Ts >
     [[maybe_unused]] constexpr auto operator( )( this Self&& self, Ts&&... args )
         SL_one_liner( details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
+
+
+    template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::then > > RHS >
+    constexpr auto then( this Lmb&& lmb, RHS&& rhs ) SL_one_liner( ::short_lambda::lambda{
+        [ lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args ) noexcept(
+            noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) && noexcept(
+                SL_forward_like_app( std::declval< RHS >( ) ) ) ) ) -> decltype( auto )
+          requires (
+              requires { SL_forward_like_app( std::declval< Lmb >( ) ); }
+              && requires { SL_forward_like_app( std::declval< RHS >( ) ); } )
+        {
+          SL_forward_like_app( lhs );
+          return SL_forward_like_app( rhs );
+        } } )
   };
 
   inline namespace factory {
@@ -533,6 +562,12 @@ namespace short_lambda {
     [[maybe_unused]] static constexpr inline auto $8 = lambda{ projector_t< 8 >{} };
     [[maybe_unused]] static constexpr inline auto $9 = lambda{ projector_t< 9 >{} };
     [[maybe_unused]] static constexpr inline auto $_ = lift_t{ };
+
+    template < class U > struct coprojector_t {
+      template < class T > constexpr static decltype( auto ) operator( )( T&& arg ) {
+        return $_( static_cast< U& >( std::forward< T >( arg ) ) );
+      }
+    };
 
   } // namespace factory
 
