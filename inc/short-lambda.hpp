@@ -6,6 +6,31 @@
 #include <type_traits>
 #include <utility>
 
+#define SL_one_liner_bare( ... )                                                                                       \
+  { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
+
+#define SL_one_liner( ... )                                                                                            \
+  noexcept( noexcept( __VA_ARGS__ ) )                                                                                  \
+      ->decltype( auto )                                                                                               \
+    requires requires { __VA_ARGS__; }                                                                                 \
+  SL_one_liner_bare( __VA_ARGS__ )
+
+#define SL_one_liner_no_ret( ... )                                                                                     \
+  noexcept( noexcept( __VA_ARGS__ ) )                                                                                  \
+    requires requires { __VA_ARGS__; }                                                                                 \
+  SL_one_liner_bare( __VA_ARGS__ )
+
+#define SL_one_liner_declval( req, ... )                                                                               \
+  noexcept( noexcept( req ) )                                                                                          \
+      ->decltype( auto )                                                                                               \
+    requires requires { req; }                                                                                         \
+  SL_one_liner_bare( __VA_ARGS__ )
+
+#define SL_forward_like_app( ... )     details::forward_like< Self >( __VA_ARGS__ )( std::forward< Ts >( args )... )
+#define SL_remove_parenthesis_1( ... ) __VA_ARGS__
+#define SL_remove_parenthesis_0( X )   X
+#define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
+
 namespace short_lambda::details {
   template < class T, class U >
   concept similar_to = std::same_as< U, std::remove_cvref_t< T > >;
@@ -32,30 +57,7 @@ namespace short_lambda::details {
   }
 } // namespace short_lambda::details
 
-#define SL_one_liner_bare( ... )                                                                                       \
-  { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
 
-#define SL_one_liner( ... )                                                                                            \
-  noexcept( noexcept( __VA_ARGS__ ) )                                                                                  \
-      ->decltype( auto )                                                                                               \
-    requires requires { __VA_ARGS__; }                                                                                 \
-  SL_one_liner_bare( __VA_ARGS__ )
-
-#define SL_one_liner_no_ret( ... )                                                                                     \
-  noexcept( noexcept( __VA_ARGS__ ) )                                                                                  \
-    requires requires { __VA_ARGS__; }                                                                                 \
-  SL_one_liner_bare( __VA_ARGS__ )
-
-#define SL_one_liner_declval( req, ... )                                                                               \
-  noexcept( noexcept( req ) )                                                                                          \
-      ->decltype( auto )                                                                                               \
-    requires requires { req; }                                                                                         \
-  SL_one_liner_bare( __VA_ARGS__ )
-
-#define SL_forward_like_app( ... )     details::forward_like< Self >( __VA_ARGS__ )( std::forward< Ts >( args )... )
-#define SL_remove_parenthesis_1( ... ) __VA_ARGS__
-#define SL_remove_parenthesis_0( X )   X
-#define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
 
 
 namespace short_lambda {
@@ -233,9 +235,10 @@ namespace short_lambda {
   auto operator SL_remove_parenthesis( op )( LHS&& lhs, RHS&& rhs ) SL_one_liner( lambda {                             \
     [lhs{ std::forward< LHS >( lhs ) },                                                                                \
      rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                   \
-        SL_one_liner_declval( /*req*/ ( name( SL_forward_like_app( std::declval< LHS >( ) ),                           \
-                                              SL_forward_like_app( std::declval< RHS >( ) ) ) ),                       \
-                              name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )                         \
+        SL_one_liner_declval(                                                                                          \
+            /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< LHS >( ) ),            \
+                                                             SL_forward_like_app( std::declval< RHS >( ) ) ) ),        \
+            ::short_lambda::function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )          \
   } )
 
     SL_lambda_binary_operator( plus, ( +) )
@@ -266,8 +269,9 @@ namespace short_lambda {
   template < details::satisfy< is_short_lambda > Oprand >                                                              \
   auto operator SL_remove_parenthesis( op )( Oprand&& fs ) SL_one_liner( lambda {                                      \
     [fs{ std::forward< Oprand >( fs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                  \
-        SL_one_liner_declval( /*req*/ ( name( SL_forward_like_app( std::declval< Oprand >( ) ) ) ),                    \
-                              name( SL_forward_like_app( fs ) ) )                                                      \
+        SL_one_liner_declval(                                                                                          \
+            /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< Oprand >( ) ) ) ),     \
+            ::short_lambda::function_object::name( SL_forward_like_app( fs ) ) )                                       \
   } )
 
     SL_lambda_unary_operator( negate, ( -) )
