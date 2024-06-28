@@ -9,6 +9,7 @@ struct P {
 };
 
 struct Q {
+  
   void operator!( ) noexcept( false ) { }
 };
 
@@ -17,6 +18,5 @@ struct R {
 };
 
 int main( ) {
-  static_assert( noexcept( ( ! $0 )( P{ } ) ) );
-  static_assert( ! noexcept( ( ! $0 )( Q{ } ) ) );
+  ($_(std::cout) << $0)("114514"); 
 }

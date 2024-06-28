@@ -76,8 +76,8 @@ namespace short_lambda {
     bit_and  = 7,
     bit_or,
     bit_xor,
-    bit_lshift,
-    bit_rshift  = 10, // ^ arithmetic
+    left_shift,
+    right_shift = 10, // ^ arithmetic
     logical_and = 11,
     logical_or,
     logical_not = 13, // ^ logical
@@ -91,42 +91,42 @@ namespace short_lambda {
     post_increment    = 21,
     pre_increment,
     post_decrement,
-    pre_decrement = 24, // ^ in/de crement
+    pre_decrement = 24, // ^ in/de-crement
     assign_to     = 25,
     add_to,
     subtract_from,
     times_by,
-    devide_by,
+    divide_by,
     modulus_with,
     bit_or_with,
     bit_and_with,
     bit_xor_with,
-    bit_lshift_with,
-    bit_rshift_with = 35, // ^ assignment
-    function_call   = 36,
+    left_shift_with,
+    right_shift_with = 35, // ^ assignment
+    function_call    = 36,
     comma,
     conditional = 38, // ^ misc
     subscript   = 39,
-    address_of,
+    address_of  = 40,
     indirection,
     object_member_access,
     pointer_member_access,
     object_member_access_of_pointer,
-    pointer_member_access_of_pointer, // ^ member access
-    static_cast_,
+    pointer_member_access_of_pointer = 45, // ^ member access
+    static_cast_                     = 46,
     dynamic_cast_,
     const_cast_,
     reinterpret_cast_,
-    cast_,
+    cstyle_cast, // cstyle cast, not keyword.
     sizeof_,
     alignof_,
     decltype_,
     typeid_,
     throw_,
-    noxecept_,
+    noexcept_,
     new_,
     delete_,
-    co_await_,
+    co_await_ = 59, // ^ special
   };
 
   template < operators op > struct operators_t {
@@ -165,8 +165,8 @@ namespace short_lambda {
     SL_define_binary_op( bit_and, (&) )
     SL_define_binary_op( bit_or, ( | ) )
     SL_define_binary_op( bit_xor, ( ^) )
-    SL_define_binary_op( bit_lshift, ( << ) )
-    SL_define_binary_op( bit_rshift, ( >> ) )
+    SL_define_binary_op( left_shift, ( << ) )
+    SL_define_binary_op( right_shift, ( >> ) )
 
     SL_define_binary_op( logical_and, (&&) )
     SL_define_binary_op( logical_or, ( || ) )
@@ -209,7 +209,6 @@ namespace short_lambda {
   } constexpr static inline name{ };
 
     SL_define_unary_member_op( object_member_access_of_pointer, (->) )
-    // SL_define_unary_member_op( object_member_access, (->) )
 
 #undef SL_define_unary_member_op
 
@@ -220,6 +219,8 @@ namespace short_lambda {
       constexpr static auto operator( )( LHS&& lhs, RHS&& rhs )
           SL_one_liner( std::forward< LHS >( lhs ).*( std::forward< RHS >( rhs ) ) )
     } constexpr static inline pointer_member_access{ };
+
+    // It seems that it's impossible to implement object_member_access (a.k.a. `dot') operator.
 
 
   } // namespace function_object
@@ -245,8 +246,8 @@ namespace short_lambda {
     SL_lambda_binary_operator( bit_and, (&) )
     SL_lambda_binary_operator( bit_or, ( | ) )
     SL_lambda_binary_operator( bit_xor, ( ^) )
-    SL_lambda_binary_operator( bit_lshift, ( << ) )
-    SL_lambda_binary_operator( bit_rshift, ( >> ) )
+    SL_lambda_binary_operator( left_shift, ( << ) )
+    SL_lambda_binary_operator( right_shift, ( >> ) )
     SL_lambda_binary_operator( logical_and, (&&) )
     SL_lambda_binary_operator( logical_or, ( || ) )
     SL_lambda_binary_operator( equal_to, ( == ) )
@@ -289,67 +290,83 @@ namespace short_lambda {
   };
 
   inline namespace factory {
-    template < std::size_t idx > struct forwarding_projector_t { // forwarding construct nth received argument
+    template < std::size_t idx > struct projector_t {
       template < class... Ts >
-      constexpr static auto operator( )( Ts&&... args )
-          SL_one_liner_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
+      constexpr inline static bool construct_from_input
+          = ! std::is_reference_v< std::tuple_element_t< idx, std::tuple< Ts... > > >;
+
+
+      template < class... Ts >
+        requires ( sizeof...( Ts ) > idx )
+      constexpr static
+          typename std::conditional_t< construct_from_input< Ts... >,
+                                       std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
+                                       std::tuple_element_t< idx, std::tuple< Ts... > > >
+          operator( )( Ts&&... args )
+              SL_one_liner_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
     };
 
-    template < std::size_t idx > struct ref_projector_t { // receive lvalue references and ref to the nth argument
-      template < class... Ts >
-      constexpr static auto operator( )( Ts&... args )
-          SL_one_liner( *std::get< idx >( std::tuple< Ts*... >{ std::addressof( args )... } ) )
+    struct lift_t { // forwarding construct received argument
+      template < class T > constexpr static auto noexcept_of( ) {
+        if constexpr ( std::is_reference_v< T > ) {
+          return noexcept(
+              lambda{ [ v = std::addressof( std::declval< T >( ) ) ]< class Self, class... Ts >(
+                          this Self&& self,
+                          Ts&&... args ) noexcept -> decltype( auto ) { return static_cast< T >( *v ); } } );
+        } else {
+          return noexcept( lambda{
+              [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args ) -> auto {
+                return v;
+              } } );
+        }
+      }
+
+      template < class T > constexpr static auto constraint_of( ) {
+        if constexpr ( std::is_reference_v< T > ) {
+          return requires {
+                   lambda{ [ v = std::addressof( std::declval< T >( ) ) ]< class Self, class... Ts >(
+                               this Self&& self,
+                               Ts&&... args ) noexcept -> decltype( auto ) { return static_cast< T >( *v ); } };
+                 };
+        } else {
+          return requires {
+                   lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >( this Self&& self,
+                                                                                      Ts&&... args ) -> auto {
+                     return v;
+                   } };
+                 };
+        }
+      }
+
+      template < class T >
+      constexpr static auto operator( )( T&& value ) noexcept( noexcept_of< T >( ) )
+        requires ( constraint_of< T >( ) )
+      {
+        if constexpr ( std::is_reference_v< T > ) { // lvalue ref
+          return lambda{ [ v = std::addressof( value ) ]< class Self, class... Ts >(
+                             this Self&& self,
+                             Ts&&... args ) noexcept -> decltype( auto ) { return static_cast< T >( *v ); } };
+        } else {
+          return lambda{
+              [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args ) -> auto {
+                return v;
+              } };
+        }
+      }
     };
 
-    struct forwarding_delay_t { // forwarding construct received argument
-      template < class T >
-      constexpr static auto operator( )( T&& value )
-          SL_one_liner_declval( ( lambda {
-                                  [v{ std::declval< T >( ) }]< class Self >( this Self&& self, auto&&... )
-                                      SL_one_liner_declval( ( details::forward_like< Self >( std::declval< T >( ) ) ),
-                                                            details::forward_like< Self >( v ) )
-                                } ),
-                                lambda {
-                                  [v{ value }]< class Self >( this Self&& self, auto&&... )
-                                      SL_one_liner_declval( ( details::forward_like< Self >( std::declval< T >( ) ) ),
-                                                            details::forward_like< Self >( v ) )
-                                } );
-    } constexpr static inline $_{ };
+    [[maybe_unused]] static constexpr inline auto $0 = lambda{ projector_t< 0 >{} };
+    [[maybe_unused]] static constexpr inline auto $1 = lambda{ projector_t< 1 >{} };
+    [[maybe_unused]] static constexpr inline auto $2 = lambda{ projector_t< 2 >{} };
+    [[maybe_unused]] static constexpr inline auto $3 = lambda{ projector_t< 3 >{} };
+    [[maybe_unused]] static constexpr inline auto $4 = lambda{ projector_t< 4 >{} };
+    [[maybe_unused]] static constexpr inline auto $5 = lambda{ projector_t< 5 >{} };
+    [[maybe_unused]] static constexpr inline auto $6 = lambda{ projector_t< 6 >{} };
+    [[maybe_unused]] static constexpr inline auto $7 = lambda{ projector_t< 7 >{} };
+    [[maybe_unused]] static constexpr inline auto $8 = lambda{ projector_t< 8 >{} };
+    [[maybe_unused]] static constexpr inline auto $9 = lambda{ projector_t< 9 >{} };
+    [[maybe_unused]] static constexpr inline auto $_ = lift_t{ };
 
-    struct ref_delay_t { // receive a lvalue reference and ref to it
-      template < class T >
-      constexpr static auto operator( )( T& value )
-          SL_one_liner_declval( ( lambda {
-                                  [v = &std::declval< T& >( )]< class Self >( this Self&& self, auto&&... )
-                                      SL_one_liner( *std::declval< T* >( ) )
-                                } ),
-                                lambda {
-                                  [v = std::addressof( value )]< class Self >( this Self&& self, auto&&... )
-                                      SL_one_liner_declval( ( *std::declval< T* >( ) ), *v )
-                                } )
-    } constexpr static inline $_${ };
-
-    [[maybe_unused]] static constexpr inline auto $0  = lambda{ forwarding_projector_t< 0 >{} };
-    [[maybe_unused]] static constexpr inline auto $1  = lambda{ forwarding_projector_t< 1 >{} };
-    [[maybe_unused]] static constexpr inline auto $2  = lambda{ forwarding_projector_t< 2 >{} };
-    [[maybe_unused]] static constexpr inline auto $3  = lambda{ forwarding_projector_t< 3 >{} };
-    [[maybe_unused]] static constexpr inline auto $4  = lambda{ forwarding_projector_t< 4 >{} };
-    [[maybe_unused]] static constexpr inline auto $5  = lambda{ forwarding_projector_t< 5 >{} };
-    [[maybe_unused]] static constexpr inline auto $6  = lambda{ forwarding_projector_t< 6 >{} };
-    [[maybe_unused]] static constexpr inline auto $7  = lambda{ forwarding_projector_t< 7 >{} };
-    [[maybe_unused]] static constexpr inline auto $8  = lambda{ forwarding_projector_t< 8 >{} };
-    [[maybe_unused]] static constexpr inline auto $9  = lambda{ forwarding_projector_t< 9 >{} };
-
-    [[maybe_unused]] static constexpr inline auto $0$ = lambda{ ref_projector_t< 0 >{} };
-    [[maybe_unused]] static constexpr inline auto $1$ = lambda{ ref_projector_t< 1 >{} };
-    [[maybe_unused]] static constexpr inline auto $2$ = lambda{ ref_projector_t< 2 >{} };
-    [[maybe_unused]] static constexpr inline auto $3$ = lambda{ ref_projector_t< 3 >{} };
-    [[maybe_unused]] static constexpr inline auto $4$ = lambda{ ref_projector_t< 4 >{} };
-    [[maybe_unused]] static constexpr inline auto $5$ = lambda{ ref_projector_t< 5 >{} };
-    [[maybe_unused]] static constexpr inline auto $6$ = lambda{ ref_projector_t< 6 >{} };
-    [[maybe_unused]] static constexpr inline auto $7$ = lambda{ ref_projector_t< 7 >{} };
-    [[maybe_unused]] static constexpr inline auto $8$ = lambda{ ref_projector_t< 8 >{} };
-    [[maybe_unused]] static constexpr inline auto $9$ = lambda{ ref_projector_t< 9 >{} };
   } // namespace factory
 
 } // namespace short_lambda
