@@ -44,8 +44,6 @@ struct K {};
 int main( ) {
   auto ptr = static_cast< auto ( * )( std::basic_ostream< char >& )->std::basic_ostream< char >& >( std::endl );
 
-  K<$1+$2> a{};
-
   (( $_( std::cin ) >> _$< int , 0> >> _$<int, 1>).then ( $_( std::cout ) << (_$< int, 0 > + _$<int, 1> * $0) << $_( ptr )  ))(
     3
   );

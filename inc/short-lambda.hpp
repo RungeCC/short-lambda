@@ -106,14 +106,14 @@ namespace short_lambda {
     right_shift_with = 35, // ^ assignment
     function_call    = 36,
     comma,
-    conditional = 38, // ^ misc            // TBD
+    conditional = 38, // ^ misc
     subscript   = 39,
-    address_of  = 40,                      // TBD
-    indirection,                           // TBD
-    object_member_access,                  // TBD
-    pointer_member_access,                 // TBD
-    object_member_access_of_pointer,       // TBD
-    pointer_member_access_of_pointer = 45, // ^ member access // TBD
+    address_of  = 40,
+    indirection,
+    object_member_access, // TBD
+    pointer_member_access,
+    object_member_access_of_pointer,
+    pointer_member_access_of_pointer = 45, // ^ member access=
     static_cast_                     = 46,
     dynamic_cast_,
     const_cast_,
@@ -211,7 +211,7 @@ namespace short_lambda {
     SL_define_unary_op( bit_not, ( ~) )
     SL_define_unary_op( logical_not, ( ! ) )
     SL_define_unary_op( address_of, (&) )
-    SL_define_unary_op( indiraction, (*) )
+    SL_define_unary_op( indirection, (*) )
     SL_define_unary_op( pre_increment, ( ++) )
     SL_define_unary_op( pre_decrement, ( --) )
 
@@ -438,6 +438,7 @@ namespace short_lambda {
     SL_lambda_binary_operator( less_equal, ( <= ) )
     SL_lambda_binary_operator( compare_three_way, ( <=> ) )
     SL_lambda_binary_operator( comma, (, ) )
+    SL_lambda_binary_operator( pointer_member_access_of_pointer, (->*) )
 
 #undef SL_lambda_binary_operator
 
@@ -455,6 +456,7 @@ namespace short_lambda {
     SL_lambda_unary_operator( positate, ( +) )
     SL_lambda_unary_operator( bit_not, ( ~) )
     SL_lambda_unary_operator( logical_not, ( ! ) )
+    SL_lambda_unary_operator( address_of, (&) )
 
 #undef SL_lambda_unary_operator
 
@@ -590,6 +592,46 @@ namespace short_lambda {
           SL_one_liner_declval( ( function_object::post_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                 function_object::post_decrement( SL_forward_like_app( lhs ) ) )
     } );
+
+    template < class Lmb,
+               details::satisfy< operator_with_lambda_enabled, operators_t< operators::conditional > > TB,
+               details::satisfy< operator_with_lambda_enabled, operators_t< operators::conditional > > FB >
+    constexpr auto conditional( this Lmb&& lmb, TB&& tb, FB&& fb ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) },
+       tb{ std::forward< TB >( tb ) },
+       fb{ std::forward< FB >( fb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval( ( function_object::conditional( SL_forward_like_app( std::declval< Lmb >( ) ),
+                                                                SL_forward_like_app( std::declval< TB >( ) ),
+                                                                SL_forward_like_app( std::declval< FB >( ) ) ) ),
+                                function_object::conditional( SL_forward_like_app( lhs ),
+                                                              SL_forward_like_app( tb ),
+                                                              SL_forward_like_app( fb ) ) )
+    } );
+
+    template < class Lmb >
+    constexpr auto operator*( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval( ( function_object::indirection( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                function_object::indirection( SL_forward_like_app( lhs ) ) )
+    } );
+
+    template < class Lmb >
+    constexpr auto operator->( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_one_liner_declval(
+          ( function_object::object_member_access_of_pointer( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+          function_object::object_member_access_of_pointer( SL_forward_like_app( lhs ) ) )
+    } );
+
+    template < class Lmb,
+               details::satisfy< operator_with_lambda_enabled, operators_t< operators::pointer_member_access > > Mptr >
+    constexpr auto pointer_member_access( this Lmb&& lmb, Mptr&& mptr ) SL_one_liner( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) },
+       mptr{ std::forward< Mptr >( mptr ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_one_liner_declval(
+              ( function_object::pointer_member_access( SL_forward_like_app( std::declval< Lmb >( ) ),
+                                                        SL_forward_like_app( std::declval< Mptr >( ) ) ) ),
+              function_object::pointer_member_access( SL_forward_like_app( lhs ), SL_forward_like_app( mptr ) ) )
+    } );
   };
 
   inline namespace factory {
@@ -642,7 +684,7 @@ namespace short_lambda {
       }
 
       template < class T >
-      constexpr static auto operator( )( T&& value ) noexcept( noexcept_of< T >( ) )
+      constexpr static auto operator( )( T&& value ) noexcept( noexcept_of< T >( ) ) -> decltype( auto )
         requires ( constraint_of< T >( ) )
       {
         if constexpr ( std::is_reference_v< T > ) { // lvalue ref
