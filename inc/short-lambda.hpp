@@ -521,6 +521,7 @@ namespace short_lambda {
       }
     };
 
+
     [[maybe_unused]] static constexpr inline auto $0 = lambda{ projector_t< 0 >{} };
     [[maybe_unused]] static constexpr inline auto $1 = lambda{ projector_t< 1 >{} };
     [[maybe_unused]] static constexpr inline auto $2 = lambda{ projector_t< 2 >{} };
