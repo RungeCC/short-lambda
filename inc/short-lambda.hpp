@@ -4,6 +4,7 @@
 #include <memory>
 #include <tuple>
 #include <type_traits>
+#include <typeindex>
 #include <utility>
 
 #define SL_one_liner_bare( ... )                                                                                       \
@@ -56,8 +57,6 @@ namespace short_lambda::details {
     }
   }
 } // namespace short_lambda::details
-
-
 
 
 namespace short_lambda {
@@ -149,7 +148,7 @@ namespace short_lambda {
   template < details::satisfy< every_operator_with_lambda_enabled > T, details::satisfy< is_operators_t > OpT >
   struct operator_with_lambda_enabled< T, OpT >: std::true_type { };
 
-  inline namespace function_object {
+  namespace function_object {
 
 #define SL_define_binary_op( name, op )                                                                                \
   struct name##_t {                                                                                                    \
@@ -184,6 +183,18 @@ namespace short_lambda {
     SL_define_binary_op( comma, (, ) )
 
     SL_define_binary_op( pointer_member_access_of_pointer, (->*) )
+
+    SL_define_binary_op( assign_to, ( = ) )
+    SL_define_binary_op( add_to, ( += ) )
+    SL_define_binary_op( subtract_from, ( -= ) )
+    SL_define_binary_op( times_by, ( *= ) )
+    SL_define_binary_op( divide_by, ( /= ) )
+    SL_define_binary_op( modulus_with, ( %= ) )
+    SL_define_binary_op( bit_or_with, ( |= ) )
+    SL_define_binary_op( bit_and_with, ( &= ) )
+    SL_define_binary_op( bit_xor_with, ( ^= ) )
+    SL_define_binary_op( left_shift_with, ( <<= ) )
+    SL_define_binary_op( right_shift_with, ( >>= ) )
 #undef SL_define_binary_op // undefine
 
 
@@ -200,19 +211,26 @@ namespace short_lambda {
     SL_define_unary_op( logical_not, ( ! ) )
     SL_define_unary_op( address_of, (&) )
     SL_define_unary_op( indiraction, (*) )
+    SL_define_unary_op( pre_increment, ( ++) )
+    SL_define_unary_op( pre_decrement, ( --) )
 
 #undef SL_define_unary_op
 
-#define SL_define_unary_member_op( name, op )                                                                          \
-  struct name##_t {                                                                                                    \
-    template < class Oprand >                                                                                          \
-    constexpr static auto operator( )( Oprand&& arg )                                                                  \
-        SL_one_liner( std::forward< Oprand >( arg ).operator SL_remove_parenthesis( op )( ) )                          \
-  } constexpr static inline name{ };
+    struct post_increment_t {
+      template < class Oprand >
+      constexpr static auto operator( )( Oprand&& arg ) SL_one_liner( std::forward< Oprand >( arg )-- )
+    } constexpr static inline post_increment{ };
 
-    SL_define_unary_member_op( object_member_access_of_pointer, (->) )
+    struct post_decrement_t {
+      template < class Oprand >
+      constexpr static auto operator( )( Oprand&& arg ) SL_one_liner( std::forward< Oprand >( arg )-- )
+    } constexpr static inline post_decrement{ };
 
-#undef SL_define_unary_member_op
+    struct object_member_access_of_pointer_t {
+      template < class Oprand >
+      constexpr static auto operator( )( Oprand&& arg ) SL_one_liner( std::forward< Oprand >( arg ).operator->( ) )
+    } constexpr static inline object_member_access_of_pointer{ };
+
 
     // some unoverloadable operator
 
@@ -223,6 +241,140 @@ namespace short_lambda {
     } constexpr static inline pointer_member_access{ };
 
     // It seems that it's impossible to implement object_member_access (a.k.a. `dot') operator.
+
+    struct function_call_t {
+      template < class F, class... Args >
+      constexpr static auto operator( )( F&& f, Args&&... args )
+          SL_one_liner( std::forward< F >( f )( std::forward< Args >( args )... ) )
+    } constexpr static inline function_call{ };
+
+    struct subscript_t {
+      template < class Array, class... Idx >
+      constexpr static auto operator( )( Array&& arr, Idx&&... idx )
+          SL_one_liner( std::forward< Array >( arr )[ std::forward< Idx >( idx )... ] )
+    } constexpr static inline subscript{ };
+
+    struct conditional_t {
+      template < class Cond, class TrueB, class FalseB >
+      constexpr static auto operator( )( Cond&& cond, TrueB&& trueb, FalseB&& falseb ) SL_one_liner(
+          std::forward< Cond >( cond ) ? std::forward< TrueB >( trueb ) : std::forward< FalseB >( falseb ) )
+    } constexpr static inline conditional{ };
+
+    struct static_cast_t {
+      template < class Target, class Op >
+      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_one_liner( static_cast< Target >( std::forward< Op >( arg ) ) )
+    } constexpr static inline static_cast_{ };
+
+    struct const_cast_t {
+      template < class Target, class Op >
+      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_one_liner( const_cast< Target >( std::forward< Op >( arg ) ) )
+    } constexpr static inline const_cast_{ };
+
+    struct dynamic_cast_t {
+      template < class Target, class Op >
+      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_one_liner( dynamic_cast< Target >( std::forward< Op >( arg ) ) )
+    } constexpr static inline dynamic_cast_{ };
+
+    struct reinterpret_cast_t {
+      template < class Target, class Op >
+      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_one_liner( reinterpret_cast< Target >( std::forward< Op >( arg ) ) )
+    } constexpr static inline reinterpret_cast_{ };
+
+    struct cstyle_cast_t {
+      template < class Target, class Op >
+      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_one_liner( (Target) ( std::forward< Op >( arg ) ) )
+    } constexpr static inline cstyle_cast{ };
+
+    struct throw_t {
+      template < class Op >
+      /*constexpr*/ [[noreturn]] static auto operator( )( Op&& arg ) noexcept( false ) -> void
+        requires requires { auto{ std::forward< Op >( arg ) }; }
+      {
+        throw std::forward< Op >( arg );
+      }
+    } constexpr static inline throw_{ };
+
+    struct noexcept_t {
+      /// @note: this operator can not work as expected, so we delete it
+      template < class Op > constexpr static auto operator( )( Op&& arg ) noexcept -> bool = delete;
+    } constexpr static inline noexcept_{ };
+
+    struct decltype_t {
+      template < class Op, bool id = false >
+      constexpr static auto operator( )( Op&& arg ) noexcept
+        requires ( ( id && requires { std::type_identity< decltype( arg ) >{ }; } )
+                   || ( requires { std::type_identity< decltype( ( arg ) ) >{ }; } ) )
+      {
+        if constexpr ( id ) {
+          return std::type_identity< decltype( arg ) >{ };
+        } else {
+          return std::type_identity< decltype( ( arg ) ) >{ };
+        }
+      }
+    } constexpr static inline decltype_{ };
+
+    struct typeid_t {
+      template < class Op >
+      constexpr static auto operator( )( Op&& arg ) noexcept
+        requires requires { std::type_index{ typeid( arg ) }; }
+      {
+        return std::type_index{ typeid( arg ) };
+      }
+    } constexpr static inline typeid_{ };
+
+    struct sizeof_t {
+      template < class Op >
+      constexpr static auto operator( )( Op&& arg ) noexcept
+        requires requires { sizeof( arg ); }
+      {
+        return sizeof( arg );
+      }
+    } constexpr static inline sizeof_{ };
+
+    struct alignof_t {
+      template < class Op >
+      constexpr static auto operator( )( Op&& arg ) noexcept
+        requires requires { alignof( std::remove_cvref_t< Op > ); }
+      {
+        return alignof( std::remove_cvref_t< Op > );
+      }
+    } constexpr static inline alignof_{ };
+
+    struct new_t {
+      /// @note: this operator can not work as expected, so we delete it
+      template < class... Ts > constexpr static auto operator( )( Ts&&... args ) = delete;
+    } constexpr static inline new_{ };
+
+    struct delete_t {
+      /// @note: this operator can not work as expected, so we delete it
+      template < class Op > constexpr static auto operator( )( Op&& arg ) = delete;
+    } constexpr static inline delete_{ };
+
+    struct co_await_t {
+      template < class Op >
+      constexpr static auto operator( )( Op&& arg )
+          noexcept( ( requires { std::forward< Op >( arg ).operator co_await( ); }
+                      && noexcept( std::forward< Op >( arg ).operator co_await( ) ) )
+                    || ( requires { operator co_await( std::forward< Op >( arg ) ); }
+                         && noexcept( operator co_await( std::forward< Op >( arg ) ) ) ) ) -> decltype( auto )
+        requires (
+            requires { std::forward< Op >( arg ).operator co_await( ); }
+            || requires { operator co_await( std::forward< Op >( arg ) ); } )
+      {
+        if constexpr ( requires { std::forward< Op >( arg ).operator co_await( ); } ) {
+          return std::forward< Op >( arg ).operator co_await( );
+        } else if constexpr ( requires { operator co_await( std::forward< Op >( arg ) ); } ) {
+          return operator co_await( std::forward< Op >( arg ) );
+        } else {
+          static_assert( false );
+        }
+      }
+    } constexpr static inline co_await_{ };
 
 
   } // namespace function_object
