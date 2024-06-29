@@ -7,30 +7,35 @@
 #include <typeindex>
 #include <utility>
 
-#define SL_one_liner_bare( ... )                                                                                       \
+#define SL_expr_equiv_bare( ... )                                                                                      \
   { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
 
-#define SL_one_liner( ... )                                                                                            \
+#define SL_expr_equiv( ... )                                                                                           \
   noexcept( noexcept( __VA_ARGS__ ) )                                                                                  \
       ->decltype( auto )                                                                                               \
     requires requires { __VA_ARGS__; }                                                                                 \
-  SL_one_liner_bare( __VA_ARGS__ )
+  SL_expr_equiv_bare( __VA_ARGS__ )
 
-#define SL_one_liner_no_ret( ... )                                                                                     \
+#define SL_expr_equiv_no_ret( ... )                                                                                    \
   noexcept( noexcept( __VA_ARGS__ ) )                                                                                  \
     requires requires { __VA_ARGS__; }                                                                                 \
-  SL_one_liner_bare( __VA_ARGS__ )
+  SL_expr_equiv_bare( __VA_ARGS__ )
 
-#define SL_one_liner_declval( req, ... )                                                                               \
+#define SL_expr_equiv_declval( req, ... )                                                                              \
   noexcept( noexcept( req ) )                                                                                          \
       ->decltype( auto )                                                                                               \
     requires requires { req; }                                                                                         \
-  SL_one_liner_bare( __VA_ARGS__ )
+  SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_forward_like_app( ... )     details::forward_like< Self >( __VA_ARGS__ )( std::forward< Ts >( args )... )
 #define SL_remove_parenthesis_1( ... ) __VA_ARGS__
 #define SL_remove_parenthesis_0( X )   X
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
+
+#define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
+#define SL_using_v                     [[maybe_unused]] static constexpr inline auto
+#define SL_using_m                     [[maybe_unused]] constexpr inline auto
+
 
 namespace short_lambda::details {
   template < class T, class U >
@@ -39,8 +44,9 @@ namespace short_lambda::details {
   template < class T, template < class... > class U, class... Us >
   concept satisfy = U< std::remove_cvref_t< T >, Us... >::value;
 
-  template < template < class > class U, class... Ts >
+  template < template < class... > class U, class... Ts >
   concept any_satisfy = ( U< std::remove_cvref_t< Ts > >::value || ... );
+
 
   template < class T, class U > [[nodiscard]] constexpr auto&& forward_like( U&& x ) noexcept {
     constexpr bool is_adding_const = std::is_const_v< std::remove_reference_t< T > >;
@@ -113,7 +119,7 @@ namespace short_lambda {
     object_member_access, // TBD
     pointer_member_access,
     object_member_access_of_pointer,
-    pointer_member_access_of_pointer = 45, // ^ member access=
+    pointer_member_access_of_pointer = 45, // ^ member access
     static_cast_                     = 46,
     dynamic_cast_,
     const_cast_,
@@ -132,7 +138,7 @@ namespace short_lambda {
   };
 
   template < operators op > struct operators_t {
-    [[maybe_unused]] static inline constexpr operators value = op;
+    SL_using_v value = op;
   };
 
   template < class T > struct is_operators_t: std::false_type { };
@@ -154,9 +160,9 @@ namespace short_lambda {
 #define SL_define_binary_op( name, op )                                                                                \
   struct name##_t {                                                                                                    \
     template < class LHS, class RHS >                                                                                  \
-    constexpr static auto operator( )( LHS&& lhs, RHS&& rhs )                                                          \
-        SL_one_liner( std::forward< LHS >( lhs ) SL_remove_parenthesis( op ) std::forward< RHS >( rhs ) )              \
-  } constexpr static inline name{ };
+    SL_using_v operator( )( LHS&& lhs, RHS&& rhs )                                                                     \
+        SL_expr_equiv( std::forward< LHS >( lhs ) SL_remove_parenthesis( op ) std::forward< RHS >( rhs ) )             \
+  } SL_using_st( name ){ };
 
     SL_define_binary_op( plus, ( +) )
     SL_define_binary_op( minus, ( -) )
@@ -202,9 +208,8 @@ namespace short_lambda {
 #define SL_define_unary_op( name, op )                                                                                 \
   struct name##_t {                                                                                                    \
     template < class Oprand >                                                                                          \
-    constexpr static auto operator( )( Oprand&& arg )                                                                  \
-        SL_one_liner( SL_remove_parenthesis( op ) std::forward< Oprand >( arg ) )                                      \
-  } constexpr static inline name{ };
+    SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( SL_remove_parenthesis( op ) std::forward< Oprand >( arg ) )  \
+  } SL_using_st( name ){ };
 
     SL_define_unary_op( negate, ( -) )
     SL_define_unary_op( positate, ( +) )
@@ -218,78 +223,76 @@ namespace short_lambda {
 #undef SL_define_unary_op
 
     struct post_increment_t {
-      template < class Oprand >
-      constexpr static auto operator( )( Oprand&& arg ) SL_one_liner( std::forward< Oprand >( arg )-- )
-    } constexpr static inline post_increment{ };
+      template < class Oprand > SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( std::forward< Oprand >( arg )-- )
+    } SL_using_st( post_increment ){ };
 
     struct post_decrement_t {
-      template < class Oprand >
-      constexpr static auto operator( )( Oprand&& arg ) SL_one_liner( std::forward< Oprand >( arg )-- )
-    } constexpr static inline post_decrement{ };
+      template < class Oprand > SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( std::forward< Oprand >( arg )-- )
+    } SL_using_st( post_decrement ){ };
 
     struct object_member_access_of_pointer_t {
       template < class Oprand >
-      constexpr static auto operator( )( Oprand&& arg ) SL_one_liner( std::forward< Oprand >( arg ).operator->( ) )
-    } constexpr static inline object_member_access_of_pointer{ };
+      SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( std::forward< Oprand >( arg ).operator->( ) )
+    } SL_using_st( object_member_access_of_pointer ){ };
 
 
     // some unoverloadable operator
 
     struct pointer_member_access_t { // a.*b
       template < class LHS, class RHS >
-      constexpr static auto operator( )( LHS&& lhs, RHS&& rhs )
-          SL_one_liner( std::forward< LHS >( lhs ).*( std::forward< RHS >( rhs ) ) )
-    } constexpr static inline pointer_member_access{ };
+      SL_using_v operator( )( LHS&& lhs, RHS&& rhs )
+          SL_expr_equiv( std::forward< LHS >( lhs ).*( std::forward< RHS >( rhs ) ) )
+    } SL_using_st( pointer_member_access ){ };
 
     // It seems that it's impossible to implement object_member_access (a.k.a. `dot') operator.
 
     struct function_call_t {
       template < class F, class... Args >
-      constexpr static auto operator( )( F&& f, Args&&... args )
-          SL_one_liner( std::forward< F >( f )( std::forward< Args >( args )... ) )
-    } constexpr static inline function_call{ };
+      SL_using_v operator( )( F&& f, Args&&... args )
+          SL_expr_equiv( std::forward< F >( f )( std::forward< Args >( args )... ) )
+    } SL_using_st( function_call ){ };
 
     struct subscript_t {
       template < class Array, class... Idx >
-      constexpr static auto operator( )( Array&& arr, Idx&&... idx )
-          SL_one_liner( std::forward< Array >( arr )[ std::forward< Idx >( idx )... ] )
-    } constexpr static inline subscript{ };
+      SL_using_v operator( )( Array&& arr, Idx&&... idx )
+          SL_expr_equiv( std::forward< Array >( arr )[ std::forward< Idx >( idx )... ] )
+    } SL_using_st( subscript ){ };
 
     struct conditional_t {
       template < class Cond, class TrueB, class FalseB >
-      constexpr static auto operator( )( Cond&& cond, TrueB&& trueb, FalseB&& falseb ) SL_one_liner(
+      SL_using_v operator( )( Cond&& cond, TrueB&& trueb, FalseB&& falseb ) SL_expr_equiv(
           std::forward< Cond >( cond ) ? std::forward< TrueB >( trueb ) : std::forward< FalseB >( falseb ) )
-    } constexpr static inline conditional{ };
+    } SL_using_st( conditional ){ };
 
     struct static_cast_t {
       template < class Target, class Op >
-      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
-          SL_one_liner( static_cast< Target >( std::forward< Op >( arg ) ) )
-    } constexpr static inline static_cast_{ };
+      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_expr_equiv( static_cast< Target >( std::forward< Op >( arg ) ) )
+    } SL_using_st( static_cast_ ){ };
 
     struct const_cast_t {
       template < class Target, class Op >
-      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
-          SL_one_liner( const_cast< Target >( std::forward< Op >( arg ) ) )
-    } constexpr static inline const_cast_{ };
+      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_expr_equiv( const_cast< Target >( std::forward< Op >( arg ) ) )
+    } SL_using_st( const_cast_ ){ };
 
     struct dynamic_cast_t {
       template < class Target, class Op >
-      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
-          SL_one_liner( dynamic_cast< Target >( std::forward< Op >( arg ) ) )
-    } constexpr static inline dynamic_cast_{ };
+      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_expr_equiv( dynamic_cast< Target >( std::forward< Op >( arg ) ) )
+    } SL_using_st( dynamic_cast_ ){ };
 
     struct reinterpret_cast_t {
       template < class Target, class Op >
-      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
-          SL_one_liner( reinterpret_cast< Target >( std::forward< Op >( arg ) ) )
-    } constexpr static inline reinterpret_cast_{ };
+      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_expr_equiv( reinterpret_cast< Target >( std::forward< Op >( arg ) ) )
+    } SL_using_st( reinterpret_cast_ ){ };
 
     struct cstyle_cast_t {
       template < class Target, class Op >
-      constexpr static auto operator( )( Op&& arg, std::type_identity< Target > target = { } )
-          SL_one_liner( (Target) ( std::forward< Op >( arg ) ) )
-    } constexpr static inline cstyle_cast{ };
+      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+          SL_expr_equiv( (Target) ( std::forward< Op >( arg ) ) )
+    } SL_using_st( cstyle_cast ){ };
 
     struct throw_t {
       template < class Op >
@@ -298,16 +301,16 @@ namespace short_lambda {
       {
         throw std::forward< Op >( arg );
       }
-    } constexpr static inline throw_{ };
+    } SL_using_st( throw_ ){ };
 
     struct noexcept_t {
       /// @note: this operator can not work as expected, so we delete it
-      template < class Op > constexpr static auto operator( )( Op&& arg ) noexcept -> bool = delete;
-    } constexpr static inline noexcept_{ };
+      template < class Op > SL_using_v operator( )( Op&& arg ) noexcept -> bool = delete;
+    } SL_using_st( noexcept_ ){ };
 
     struct decltype_t {
       template < class Op, bool id = false >
-      constexpr static auto operator( )( Op&& arg ) noexcept
+      SL_using_v operator( )( Op&& arg, std::integral_constant< bool, id > = { } ) noexcept
         requires ( ( id && requires { std::type_identity< decltype( arg ) >{ }; } )
                    || ( requires { std::type_identity< decltype( ( arg ) ) >{ }; } ) )
       {
@@ -317,45 +320,46 @@ namespace short_lambda {
           return std::type_identity< decltype( ( arg ) ) >{ };
         }
       }
-    } constexpr static inline decltype_{ };
+    } SL_using_st( decltype_ ){ };
 
     struct typeid_t {
       template < class Op >
-      constexpr static auto operator( )( Op&& arg ) noexcept
+      SL_using_v operator( )( Op&& arg ) noexcept
         requires requires { std::type_index{ typeid( arg ) }; }
       {
         return std::type_index{ typeid( arg ) };
       }
-    } constexpr static inline typeid_{ };
+    } SL_using_st( typeid_ ){ };
 
     struct sizeof_t {
       template < class Op >
-      constexpr static auto operator( )( Op&& arg ) noexcept
+      SL_using_v operator( )( Op&& arg ) noexcept
         requires requires { sizeof( arg ); }
       {
         return sizeof( arg );
       }
-    } constexpr static inline sizeof_{ };
+    } SL_using_st( sizeof_ ){ };
 
     struct alignof_t {
       template < class Op >
-      constexpr static auto operator( )( Op&& arg ) noexcept
+      SL_using_v operator( )( Op&& arg ) noexcept
         requires requires { alignof( std::remove_cvref_t< Op > ); }
       {
         return alignof( std::remove_cvref_t< Op > );
       }
-    } constexpr static inline alignof_{ };
+    } SL_using_st( alignof_ ){ };
 
     struct new_t {
-      template < class T0, class... Ts, bool Array = false >
-      constexpr static auto operator( )( std::type_identity< T0 > arg0, Ts&&... args )
-          SL_one_liner( new T0{ std::forward< Ts >( args )... } )
-    } constexpr static inline new_{ };
+      template < class T0, class... Ts >
+      SL_using_v operator( )( std::type_identity< T0 > arg0, Ts&&... args )
+          SL_expr_equiv( new T0{ std::forward< Ts >( args )... } )
+    } SL_using_st( new_ ){ };
 
     struct delete_t {
       template < bool Array = false, class Op >
-      constexpr static auto operator( )( Op&& arg )
-          noexcept( ( Array && noexcept( delete[] arg ) ) || ( noexcept( delete arg ) ) ) -> decltype( auto )
+      SL_using_v operator( )( Op&& arg, std::integral_constant< bool, Array > = { } )
+          noexcept( ( Array && noexcept( delete[] arg ) ) || ( noexcept( delete arg ) ) )
+              ->decltype( auto )
         requires ( ( Array && requires { delete[] arg; } ) || ( requires { delete arg; } ) )
       {
         if constexpr ( Array ) {
@@ -364,15 +368,16 @@ namespace short_lambda {
           delete arg;
         }
       }
-    } constexpr static inline delete_{ };
+    } SL_using_st( delete_ ){ };
 
     struct co_await_t {
       template < class Op >
-      constexpr static auto operator( )( Op&& arg )
+      SL_using_v operator( )( Op&& arg )
           noexcept( ( requires { std::forward< Op >( arg ).operator co_await( ); }
                       && noexcept( std::forward< Op >( arg ).operator co_await( ) ) )
                     || ( requires { operator co_await( std::forward< Op >( arg ) ); }
-                         && noexcept( operator co_await( std::forward< Op >( arg ) ) ) ) ) -> decltype( auto )
+                         && noexcept( operator co_await( std::forward< Op >( arg ) ) ) ) )
+              ->decltype( auto )
         requires (
             requires { std::forward< Op >( arg ).operator co_await( ); }
             || requires { operator co_await( std::forward< Op >( arg ) ); } )
@@ -385,12 +390,13 @@ namespace short_lambda {
           static_assert( false );
         }
       }
-    } constexpr static inline co_await_{ };
+    } SL_using_st( co_await_ ){ };
 
     struct then_t {
       template < class LHS, class RHS >
-      constexpr static auto operator( )( LHS&& lhs, RHS&& rhs )
-          noexcept( noexcept( lhs ) && noexcept( std::forward< RHS >( rhs ) ) ) -> decltype( auto )
+      SL_using_v operator( )( LHS&& lhs, RHS&& rhs )
+          noexcept( noexcept( lhs ) && noexcept( std::forward< RHS >( rhs ) ) )
+              ->decltype( auto )
         requires requires {
                    lhs;
                    std::forward< RHS >( rhs );
@@ -399,7 +405,7 @@ namespace short_lambda {
         lhs;
         return std::forward< RHS >( rhs );
       }
-    } constexpr static inline then{ };
+    } SL_using_st( then ){ };
 
 
   } // namespace function_object
@@ -409,10 +415,10 @@ namespace short_lambda {
   template < details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > LHS,                     \
              details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >                    \
     requires details::any_satisfy< is_short_lambda, LHS, RHS >                                                         \
-  auto operator SL_remove_parenthesis( op )( LHS&& lhs, RHS&& rhs ) SL_one_liner( lambda {                             \
+  auto operator SL_remove_parenthesis( op )( LHS&& lhs, RHS&& rhs ) SL_expr_equiv( lambda {                            \
     [lhs{ std::forward< LHS >( lhs ) },                                                                                \
      rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                   \
-        SL_one_liner_declval(                                                                                          \
+        SL_expr_equiv_declval(                                                                                         \
             /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< LHS >( ) ),            \
                                                              SL_forward_like_app( std::declval< RHS >( ) ) ) ),        \
             ::short_lambda::function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )          \
@@ -445,9 +451,9 @@ namespace short_lambda {
 
 #define SL_lambda_unary_operator( name, op )                                                                           \
   template < details::satisfy< is_short_lambda > Oprand >                                                              \
-  auto operator SL_remove_parenthesis( op )( Oprand&& fs ) SL_one_liner( lambda {                                      \
+  auto operator SL_remove_parenthesis( op )( Oprand&& fs ) SL_expr_equiv( lambda {                                     \
     [fs{ std::forward< Oprand >( fs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                  \
-        SL_one_liner_declval(                                                                                          \
+        SL_expr_equiv_declval(                                                                                         \
             /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< Oprand >( ) ) ) ),     \
             ::short_lambda::function_object::name( SL_forward_like_app( fs ) ) )                                       \
   } )
@@ -465,15 +471,16 @@ namespace short_lambda {
   template < class CallableT > struct lambda {
     CallableT storage;
 
-    using type = CallableT;
+    using type   = CallableT;
+    using self_t = lambda< CallableT >;
 
     template < details::similar_to< lambda > Self, class... Ts >
     [[maybe_unused]] constexpr auto operator( )( this Self&& self, Ts&&... args )
-        SL_one_liner( details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
+        SL_expr_equiv( details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
 
 
     template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::then > > RHS >
-    constexpr auto then( this Lmb&& lmb, RHS&& rhs ) SL_one_liner( ::short_lambda::lambda{
+    constexpr auto then( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda{
         [ lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args ) noexcept(
             noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) && noexcept(
                 SL_forward_like_app( std::declval< RHS >( ) ) ) ) ) -> decltype( auto )
@@ -487,12 +494,12 @@ namespace short_lambda {
 
 #define SL_lambda_member_variadic_op( name )                                                                           \
   template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > >... RHS >      \
-  constexpr auto name( this Lmb&& lmb, RHS&&... rhs ) SL_one_liner( ::short_lambda::lambda {                           \
+  constexpr auto name( this Lmb&& lmb, RHS&&... rhs ) SL_expr_equiv( ::short_lambda::lambda {                          \
     [lhs{ std::forward< Lmb >( lmb ) },                                                                                \
      ... rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )                                 \
-        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                  \
-                                                       SL_forward_like_app( std::declval< RHS >( ) )... ) ),           \
-                              function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs )... ) )     \
+        SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
+                                                        SL_forward_like_app( std::declval< RHS >( ) )... ) ),          \
+                               function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs )... ) )    \
   } );
 
 
@@ -502,11 +509,11 @@ namespace short_lambda {
 
 #define SL_lambda_member_binary_op_named( name )                                                                       \
   template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >         \
-  constexpr auto name( this Lmb&& lmb, RHS&& rhs ) SL_one_liner( ::short_lambda::lambda {                              \
+  constexpr auto name( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda {                             \
     [lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )  \
-        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                  \
-                                                       SL_forward_like_app( std::declval< RHS >( ) ) ) ),              \
-                              function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )        \
+        SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
+                                                        SL_forward_like_app( std::declval< RHS >( ) ) ) ),             \
+                               function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )       \
   } );
 
     SL_lambda_member_binary_op_named( assign_to ) // avoid overloading copy/move assign operator!
@@ -516,11 +523,11 @@ namespace short_lambda {
 #define SL_lambda_member_binary_op( name, op )                                                                         \
   template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >         \
   constexpr auto operator SL_remove_parenthesis( op )( this Lmb&& lmb,                                                 \
-                                                       RHS&&      rhs ) SL_one_liner( ::short_lambda::lambda {              \
+                                                       RHS&&      rhs ) SL_expr_equiv( ::short_lambda::lambda {             \
     [lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )  \
-        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                  \
-                                                       SL_forward_like_app( std::declval< RHS >( ) ) ) ),              \
-                              function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )        \
+        SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
+                                                        SL_forward_like_app( std::declval< RHS >( ) ) ) ),             \
+                               function_object::name( SL_forward_like_app( lhs ), SL_forward_like_app( rhs ) ) )       \
   } );
 
     SL_lambda_member_binary_op( add_to, ( += ) )
@@ -537,8 +544,8 @@ namespace short_lambda {
 
 #define SL_lambda_member_cast_op_named( name )                                                                         \
   template < class Target, class Lmb >                                                                                 \
-  constexpr auto name( this Lmb&& lmb, std::type_identity< Target > = { } ) SL_one_liner( ::short_lambda::lambda {     \
-    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_one_liner_declval(               \
+  constexpr auto name( this Lmb&& lmb, std::type_identity< Target > = { } ) SL_expr_equiv( ::short_lambda::lambda {    \
+    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(              \
         ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ), std::type_identity< Target >{ } ) ),   \
         function_object::name( SL_forward_like_app( lhs ), std::type_identity< Target >{ } ) )                         \
   } );
@@ -553,14 +560,13 @@ namespace short_lambda {
 
 #define SL_lambda_member_unary_op_named( name )                                                                        \
   template < class Lmb >                                                                                               \
-  constexpr auto name( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {                                         \
+  constexpr auto name( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {                                        \
     [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )                                     \
-        SL_one_liner_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),              \
-                              function_object::name( SL_forward_like_app( lhs ) ) )                                    \
+        SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),             \
+                               function_object::name( SL_forward_like_app( lhs ) ) )                                   \
   } );
 
     SL_lambda_member_unary_op_named( throw_ )
-    SL_lambda_member_unary_op_named( decltype_ )
     SL_lambda_member_unary_op_named( typeid_ )
     SL_lambda_member_unary_op_named( sizeof_ )
     SL_lambda_member_unary_op_named( alignof_ )
@@ -568,69 +574,99 @@ namespace short_lambda {
 
 #undef SL_lambda_member_unary_op_named
 
+    template < bool Id = false, class Lmb >
+    constexpr auto decltype_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
+          ( function_object::decltype_( SL_forward_like_app( std::declval< Lmb >( ) ),
+                                        std::integral_constant< bool, Id >{ } ) ),
+          function_object::decltype_( SL_forward_like_app( lhs ), std::integral_constant< bool, Id >{ } ) )
+    } );
+
     template < class Lmb >
-    constexpr auto operator++( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto noexcept_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval( ( function_object::pre_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
-                                function_object::pre_increment( SL_forward_like_app( lhs ) ) )
+          SL_expr_equiv_declval( ( noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                 noexcept( SL_forward_like_app( lmb ) ) )
+    } );
+
+    template < class Lmb >
+    constexpr auto operator++( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
+          SL_expr_equiv_declval( ( function_object::pre_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                 function_object::pre_increment( SL_forward_like_app( lhs ) ) )
     } );
     template < class Lmb >
-    constexpr auto operator++( this Lmb&& lmb, int ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto operator++( this Lmb&& lmb, int ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval( ( function_object::post_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
-                                function_object::post_increment( SL_forward_like_app( lhs ) ) )
+          SL_expr_equiv_declval( ( function_object::post_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                 function_object::post_increment( SL_forward_like_app( lhs ) ) )
     } );
     template < class Lmb >
-    constexpr auto operator--( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto operator--( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval( ( function_object::pre_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
-                                function_object::pre_decrement( SL_forward_like_app( lhs ) ) )
+          SL_expr_equiv_declval( ( function_object::pre_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                 function_object::pre_decrement( SL_forward_like_app( lhs ) ) )
     } );
     template < class Lmb >
-    constexpr auto operator--( this Lmb&& lmb, int ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto operator--( this Lmb&& lmb, int ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval( ( function_object::post_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
-                                function_object::post_decrement( SL_forward_like_app( lhs ) ) )
+          SL_expr_equiv_declval( ( function_object::post_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                 function_object::post_decrement( SL_forward_like_app( lhs ) ) )
     } );
 
     template < class Lmb,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::conditional > > TB,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::conditional > > FB >
-    constexpr auto conditional( this Lmb&& lmb, TB&& tb, FB&& fb ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto conditional( this Lmb&& lmb, TB&& tb, FB&& fb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) },
        tb{ std::forward< TB >( tb ) },
        fb{ std::forward< FB >( fb ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval( ( function_object::conditional( SL_forward_like_app( std::declval< Lmb >( ) ),
-                                                                SL_forward_like_app( std::declval< TB >( ) ),
-                                                                SL_forward_like_app( std::declval< FB >( ) ) ) ),
-                                function_object::conditional( SL_forward_like_app( lhs ),
-                                                              SL_forward_like_app( tb ),
-                                                              SL_forward_like_app( fb ) ) )
+          SL_expr_equiv_declval( ( function_object::conditional( SL_forward_like_app( std::declval< Lmb >( ) ),
+                                                                 SL_forward_like_app( std::declval< TB >( ) ),
+                                                                 SL_forward_like_app( std::declval< FB >( ) ) ) ),
+                                 function_object::conditional( SL_forward_like_app( lhs ),
+                                                               SL_forward_like_app( tb ),
+                                                               SL_forward_like_app( fb ) ) )
     } );
 
     template < class Lmb >
-    constexpr auto operator*( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto operator*( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval( ( function_object::indirection( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
-                                function_object::indirection( SL_forward_like_app( lhs ) ) )
+          SL_expr_equiv_declval( ( function_object::indirection( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+                                 function_object::indirection( SL_forward_like_app( lhs ) ) )
     } );
 
     template < class Lmb >
-    constexpr auto operator->( this Lmb&& lmb ) SL_one_liner( ::short_lambda::lambda {
-      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_one_liner_declval(
+    constexpr auto operator->( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
           ( function_object::object_member_access_of_pointer( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
           function_object::object_member_access_of_pointer( SL_forward_like_app( lhs ) ) )
     } );
 
     template < class Lmb,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::pointer_member_access > > Mptr >
-    constexpr auto pointer_member_access( this Lmb&& lmb, Mptr&& mptr ) SL_one_liner( ::short_lambda::lambda {
+    constexpr auto pointer_member_access( this Lmb&& lmb, Mptr&& mptr ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) },
        mptr{ std::forward< Mptr >( mptr ) }]< class Self, class... Ts >( Ts&&... args )
-          SL_one_liner_declval(
+          SL_expr_equiv_declval(
               ( function_object::pointer_member_access( SL_forward_like_app( std::declval< Lmb >( ) ),
                                                         SL_forward_like_app( std::declval< Mptr >( ) ) ) ),
               function_object::pointer_member_access( SL_forward_like_app( lhs ), SL_forward_like_app( mptr ) ) )
+    } );
+
+    template < class T, details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ > >... Args >
+      requires ( std::same_as< Args, self_t > || ... )
+    constexpr friend auto new_( Args&&... args1 ) SL_expr_equiv(
+        [... args1{ std::forward< Args >( args1 ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
+            ( function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( std::declval< Args >( ) )... ) ),
+            function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( args1 )... ) ) )
+
+    template < bool Array = false, class Lmb >
+    constexpr auto delete_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
+          ( function_object::delete_( SL_forward_like_app( std::declval< Lmb >( ) ),
+                                      std::integral_constant< bool, Array >{ } ) ),
+          function_object::delete_( SL_forward_like_app( lhs ), std::integral_constant< bool, Array >{ } ) )
     } );
   };
 
@@ -648,11 +684,11 @@ namespace short_lambda {
                                        std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
                                        std::tuple_element_t< idx, std::tuple< Ts... > > >
           operator( )( Ts&&... args )
-              SL_one_liner_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
+              SL_expr_equiv_no_ret( std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
     };
 
     struct lift_t { // forwarding construct received argument
-      template < class T > constexpr static auto noexcept_of( ) {
+      template < class T > SL_using_v noexcept_of( ) {
         if constexpr ( std::is_reference_v< T > ) {
           return noexcept(
               lambda{ [ v = std::addressof( std::declval< T >( ) ) ]< class Self, class... Ts >(
@@ -666,7 +702,7 @@ namespace short_lambda {
         }
       }
 
-      template < class T > constexpr static auto constraint_of( ) {
+      template < class T > SL_using_v constraint_of( ) {
         if constexpr ( std::is_reference_v< T > ) {
           return requires {
                    lambda{ [ v = std::addressof( std::declval< T >( ) ) ]< class Self, class... Ts >(
@@ -684,7 +720,8 @@ namespace short_lambda {
       }
 
       template < class T >
-      constexpr static auto operator( )( T&& value ) noexcept( noexcept_of< T >( ) ) -> decltype( auto )
+      SL_using_v operator( )( T&& value ) noexcept( noexcept_of< T >( ) )
+          ->decltype( auto )
         requires ( constraint_of< T >( ) )
       {
         if constexpr ( std::is_reference_v< T > ) { // lvalue ref
@@ -701,36 +738,33 @@ namespace short_lambda {
     };
 
 
-    [[maybe_unused]] static constexpr inline auto $0 = lambda{ projector_t< 0 >{} };
-    [[maybe_unused]] static constexpr inline auto $1 = lambda{ projector_t< 1 >{} };
-    [[maybe_unused]] static constexpr inline auto $2 = lambda{ projector_t< 2 >{} };
-    [[maybe_unused]] static constexpr inline auto $3 = lambda{ projector_t< 3 >{} };
-    [[maybe_unused]] static constexpr inline auto $4 = lambda{ projector_t< 4 >{} };
-    [[maybe_unused]] static constexpr inline auto $5 = lambda{ projector_t< 5 >{} };
-    [[maybe_unused]] static constexpr inline auto $6 = lambda{ projector_t< 6 >{} };
-    [[maybe_unused]] static constexpr inline auto $7 = lambda{ projector_t< 7 >{} };
-    [[maybe_unused]] static constexpr inline auto $8 = lambda{ projector_t< 8 >{} };
-    [[maybe_unused]] static constexpr inline auto $9 = lambda{ projector_t< 9 >{} };
-    [[maybe_unused]] static constexpr inline auto $_ = lift_t{ };
+    SL_using_v $0 = lambda{ projector_t< 0 >{} };
+    SL_using_v $1 = lambda{ projector_t< 1 >{} };
+    SL_using_v $2 = lambda{ projector_t< 2 >{} };
+    SL_using_v $3 = lambda{ projector_t< 3 >{} };
+    SL_using_v $4 = lambda{ projector_t< 4 >{} };
+    SL_using_v $5 = lambda{ projector_t< 5 >{} };
+    SL_using_v $6 = lambda{ projector_t< 6 >{} };
+    SL_using_v $7 = lambda{ projector_t< 7 >{} };
+    SL_using_v $8 = lambda{ projector_t< 8 >{} };
+    SL_using_v $9 = lambda{ projector_t< 9 >{} };
+    SL_using_v $_ = lift_t{ };
 
     template < class U > struct coprojector_t {
-      template < class T > constexpr static decltype( auto ) operator( )( T&& arg ) {
-        return $_( static_cast< U& >( arg ) );
-      }
+      template < class T > SL_using_v operator( )( T&& arg ) SL_expr_equiv( $_( static_cast< U& >( arg ) ) )
     };
 
     template < class T >
       requires std::is_default_constructible_v< T >
     struct storage_t {
-      T                                          value;
+      T value;
 
-      template < class U, class Self > constexpr operator U&( this Self&& self ) {
-        return details::forward_like< Self >( self.value );
-      }
+      template < class U, class Self >
+      constexpr operator U&( this Self&& self ) SL_expr_equiv_no_ret( details::forward_like< Self >( self.value ) )
 
-      template < class... Ts, class Self > constexpr decltype( auto ) operator( )( this Self&& self, Ts&&... args ) {
-        return details::forward_like< Self >( self.value );
-      }
+      template < class... Ts, class Self >
+      constexpr auto operator( )( this Self&& self, Ts&&... args )
+          SL_expr_equiv( details::forward_like< Self >( self.value ) )
     };
 
 
@@ -744,12 +778,14 @@ namespace short_lambda {
 } // namespace short_lambda
 
 
-#undef SL_one_liner
-#undef SL_one_liner_declval
-#undef SL_one_liner_bare
-#undef SL_one_liner_no_ret
+#undef SL_expr_equiv
+#undef SL_expr_equiv_declval
+#undef SL_expr_equiv_bare
+#undef SL_expr_equiv_no_ret
 
 #undef SL_forward_like_app
 #undef SL_remove_parenthesis_1
 #undef SL_remove_parenthesis_0
 #undef SL_remove_parenthesis
+
+#undef SL_using_v

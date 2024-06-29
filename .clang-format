@@ -143,14 +143,14 @@ SpacesInParensOptions:
 SpacesInSquareBrackets: true
 Standard: Latest
 StatementMacros:
-  - SL_one_liner
-  - SL_one_liner_bare
-  - SL_one_liner_declval
+  - SL_expr_equiv
+  - SL_expr_equiv_bare
+  - SL_expr_equiv_declval
+  - SL_expr_equiv_no_ret
   - SL_define_binary_op
   - SL_lambda_binary_operator
   - SL_lambda_unary_operator
   - SL_define_unary_op
-  - SL_one_liner_no_ret
   - SL_define_unary_member_op
   - SL_lambda_member_variadic_op
   - SL_lambda_member_binary_op
