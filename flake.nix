@@ -14,8 +14,7 @@
     };
   in {
     devShells.default = pkgs.mkShell.override {
-      stdenv = pkgs.llvmPackages_18.stdenv;
-      # stdenv = pkgs.gcc14Stdenv;
+      stdenv = pkgs.llvmPackages_18.libcxxStdenv;
     } rec {
       name = "short-lambda.cpp";
 

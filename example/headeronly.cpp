@@ -1,10 +1,9 @@
-#include "short-lambda.hpp"
+#include <iostream>
 
-#include <type_traits>
+#include "short-lambda.hpp"
 
 using namespace short_lambda;
 
-#include <iostream>
 
 struct P {
   void operator!( ) noexcept { }

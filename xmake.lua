@@ -6,18 +6,36 @@ set_allowedmodes("debug", "release")
 
 set_languages("c++26")
 
-set_warnings("all")
+add_rules("plugin.compile_commands.autoupdate", { outputdir = "." })
 
--- set_toolchains("clang-18")
+set_warnings("all")
 
 add_rules("mode.release")
 
-target("short-lambda")
-    set_kind("headeronly")
-    add_includedirs("inc", {interface = true})
-    add_headerfiles("inc/(*.hpp)")
+target("short-lambda.headeronly")
+do
+  set_kind("headeronly")
+  add_includedirs("include", { interface = true })
+  add_headerfiles("include/(*.hpp)")
+end
 
-target("example")
-    set_kind("binary")
-    add_deps("short-lambda")
-    add_files("example/example1.cpp")
+target("short-lambda.module")
+do
+  set_kind("moduleonly")
+  add_files("module/short-lambda.cppm", { public = true })
+  set_policy("build.c++.modules", true)
+end
+
+function make_example(name)
+  target("example." .. name, {
+    kind = "binary",
+    deps = "short-lambda.module",
+    files = "example/" .. name .. ".cpp" })
+end
+
+make_example("moduleonly")
+
+target("example.headeronly", {
+  kind = "binary",
+  deps = "short-lambda.headeronly",
+  files = "example/headeronly.cpp" })
