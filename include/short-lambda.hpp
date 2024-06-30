@@ -208,8 +208,8 @@ namespace short_lambda {
 
 #define SL_define_unary_op( name, op )                                                                                 \
   struct name##_t {                                                                                                    \
-    template < class Oprand >                                                                                          \
-    SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( SL_remove_parenthesis( op ) std::forward< Oprand >( arg ) )  \
+    template < class Operand >                                                                                          \
+    SL_using_v operator( )( Operand&& arg ) SL_expr_equiv( SL_remove_parenthesis( op ) std::forward< Operand >( arg ) )  \
   } SL_using_st( name ){ };
 
     SL_define_unary_op( negate, ( -) )
@@ -224,16 +224,16 @@ namespace short_lambda {
 #undef SL_define_unary_op
 
     struct post_increment_t {
-      template < class Oprand > SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( std::forward< Oprand >( arg )-- )
+      template < class Operand > SL_using_v operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg )-- )
     } SL_using_st( post_increment ){ };
 
     struct post_decrement_t {
-      template < class Oprand > SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( std::forward< Oprand >( arg )-- )
+      template < class Operand > SL_using_v operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg )-- )
     } SL_using_st( post_decrement ){ };
 
     struct object_member_access_of_pointer_t {
-      template < class Oprand >
-      SL_using_v operator( )( Oprand&& arg ) SL_expr_equiv( std::forward< Oprand >( arg ).operator->( ) )
+      template < class Operand >
+      SL_using_v operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg ).operator->( ) )
     } SL_using_st( object_member_access_of_pointer ){ };
 
 
@@ -451,11 +451,11 @@ namespace short_lambda {
 
 
 #define SL_lambda_unary_operator( name, op )                                                                           \
-  template < details::satisfy< is_short_lambda > Oprand >                                                              \
-  SL_using_m operator SL_remove_parenthesis( op )( Oprand&& fs ) SL_expr_equiv( lambda {                               \
-    [fs{ std::forward< Oprand >( fs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                  \
+  template < details::satisfy< is_short_lambda > Operand >                                                              \
+  SL_using_m operator SL_remove_parenthesis( op )( Operand&& fs ) SL_expr_equiv( lambda {                               \
+    [fs{ std::forward< Operand >( fs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                  \
         SL_expr_equiv_declval(                                                                                         \
-            /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< Oprand >( ) ) ) ),     \
+            /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< Operand >( ) ) ) ),     \
             ::short_lambda::function_object::name( SL_forward_like_app( fs ) ) )                                       \
   } )
 
