@@ -35,6 +35,7 @@
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
 #define SL_using_v                     [[maybe_unused]] static constexpr inline auto
 #define SL_using_m                     [[maybe_unused]] constexpr inline auto
+#define SL_using_f                     [[maybe_unused]] friend constexpr inline auto
 
 
 namespace short_lambda::details {
@@ -415,7 +416,7 @@ namespace short_lambda {
   template < details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > LHS,                     \
              details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >                    \
     requires details::any_satisfy< is_short_lambda, LHS, RHS >                                                         \
-  auto operator SL_remove_parenthesis( op )( LHS&& lhs, RHS&& rhs ) SL_expr_equiv( lambda {                            \
+  SL_using_m operator SL_remove_parenthesis( op )( LHS&& lhs, RHS&& rhs ) SL_expr_equiv( lambda {                      \
     [lhs{ std::forward< LHS >( lhs ) },                                                                                \
      rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                   \
         SL_expr_equiv_declval(                                                                                         \
@@ -451,7 +452,7 @@ namespace short_lambda {
 
 #define SL_lambda_unary_operator( name, op )                                                                           \
   template < details::satisfy< is_short_lambda > Oprand >                                                              \
-  auto operator SL_remove_parenthesis( op )( Oprand&& fs ) SL_expr_equiv( lambda {                                     \
+  SL_using_m operator SL_remove_parenthesis( op )( Oprand&& fs ) SL_expr_equiv( lambda {                               \
     [fs{ std::forward< Oprand >( fs ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                  \
         SL_expr_equiv_declval(                                                                                         \
             /*req*/ ( ::short_lambda::function_object::name( SL_forward_like_app( std::declval< Oprand >( ) ) ) ),     \
@@ -475,12 +476,12 @@ namespace short_lambda {
     using self_t = lambda< CallableT >;
 
     template < details::similar_to< lambda > Self, class... Ts >
-    [[maybe_unused]] constexpr auto operator( )( this Self&& self, Ts&&... args )
+    SL_using_m operator( )( this Self&& self, Ts&&... args )
         SL_expr_equiv( details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
 
 
     template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::then > > RHS >
-    constexpr auto then( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda{
+    SL_using_m then( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda{
         [ lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args ) noexcept(
             noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) && noexcept(
                 SL_forward_like_app( std::declval< RHS >( ) ) ) ) ) -> decltype( auto )
@@ -494,7 +495,7 @@ namespace short_lambda {
 
 #define SL_lambda_member_variadic_op( name )                                                                           \
   template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > >... RHS >      \
-  constexpr auto name( this Lmb&& lmb, RHS&&... rhs ) SL_expr_equiv( ::short_lambda::lambda {                          \
+  SL_using_m name( this Lmb&& lmb, RHS&&... rhs ) SL_expr_equiv( ::short_lambda::lambda {                              \
     [lhs{ std::forward< Lmb >( lmb ) },                                                                                \
      ... rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )                                 \
         SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
@@ -509,7 +510,7 @@ namespace short_lambda {
 
 #define SL_lambda_member_binary_op_named( name )                                                                       \
   template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >         \
-  constexpr auto name( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda {                             \
+  SL_using_m name( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda {                                 \
     [lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )  \
         SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
                                                         SL_forward_like_app( std::declval< RHS >( ) ) ) ),             \
@@ -522,8 +523,7 @@ namespace short_lambda {
 
 #define SL_lambda_member_binary_op( name, op )                                                                         \
   template < class Lmb, details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS >         \
-  constexpr auto operator SL_remove_parenthesis( op )( this Lmb&& lmb,                                                 \
-                                                       RHS&&      rhs ) SL_expr_equiv( ::short_lambda::lambda {             \
+  SL_using_m operator SL_remove_parenthesis( op )( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda { \
     [lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( Ts&&... args )  \
         SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
                                                         SL_forward_like_app( std::declval< RHS >( ) ) ) ),             \
@@ -544,7 +544,7 @@ namespace short_lambda {
 
 #define SL_lambda_member_cast_op_named( name )                                                                         \
   template < class Target, class Lmb >                                                                                 \
-  constexpr auto name( this Lmb&& lmb, std::type_identity< Target > = { } ) SL_expr_equiv( ::short_lambda::lambda {    \
+  SL_using_m name( this Lmb&& lmb, std::type_identity< Target > = { } ) SL_expr_equiv( ::short_lambda::lambda {        \
     [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(              \
         ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ), std::type_identity< Target >{ } ) ),   \
         function_object::name( SL_forward_like_app( lhs ), std::type_identity< Target >{ } ) )                         \
@@ -560,7 +560,7 @@ namespace short_lambda {
 
 #define SL_lambda_member_unary_op_named( name )                                                                        \
   template < class Lmb >                                                                                               \
-  constexpr auto name( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {                                        \
+  SL_using_m name( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {                                            \
     [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )                                     \
         SL_expr_equiv_declval( ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),             \
                                function_object::name( SL_forward_like_app( lhs ) ) )                                   \
@@ -575,7 +575,7 @@ namespace short_lambda {
 #undef SL_lambda_member_unary_op_named
 
     template < bool Id = false, class Lmb >
-    constexpr auto decltype_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m decltype_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
           ( function_object::decltype_( SL_forward_like_app( std::declval< Lmb >( ) ),
                                         std::integral_constant< bool, Id >{ } ) ),
@@ -583,32 +583,32 @@ namespace short_lambda {
     } );
 
     template < class Lmb >
-    constexpr auto noexcept_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m noexcept_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval( ( noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                  noexcept( SL_forward_like_app( lmb ) ) )
     } );
 
     template < class Lmb >
-    constexpr auto operator++( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m operator++( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval( ( function_object::pre_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                  function_object::pre_increment( SL_forward_like_app( lhs ) ) )
     } );
     template < class Lmb >
-    constexpr auto operator++( this Lmb&& lmb, int ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m operator++( this Lmb&& lmb, int ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval( ( function_object::post_increment( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                  function_object::post_increment( SL_forward_like_app( lhs ) ) )
     } );
     template < class Lmb >
-    constexpr auto operator--( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m operator--( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval( ( function_object::pre_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                  function_object::pre_decrement( SL_forward_like_app( lhs ) ) )
     } );
     template < class Lmb >
-    constexpr auto operator--( this Lmb&& lmb, int ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m operator--( this Lmb&& lmb, int ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval( ( function_object::post_decrement( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                  function_object::post_decrement( SL_forward_like_app( lhs ) ) )
@@ -617,7 +617,7 @@ namespace short_lambda {
     template < class Lmb,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::conditional > > TB,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::conditional > > FB >
-    constexpr auto conditional( this Lmb&& lmb, TB&& tb, FB&& fb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m conditional( this Lmb&& lmb, TB&& tb, FB&& fb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) },
        tb{ std::forward< TB >( tb ) },
        fb{ std::forward< FB >( fb ) }]< class Self, class... Ts >( Ts&&... args )
@@ -630,14 +630,14 @@ namespace short_lambda {
     } );
 
     template < class Lmb >
-    constexpr auto operator*( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m operator*( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval( ( function_object::indirection( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
                                  function_object::indirection( SL_forward_like_app( lhs ) ) )
     } );
 
     template < class Lmb >
-    constexpr auto operator->( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m operator->( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
           ( function_object::object_member_access_of_pointer( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
           function_object::object_member_access_of_pointer( SL_forward_like_app( lhs ) ) )
@@ -645,7 +645,7 @@ namespace short_lambda {
 
     template < class Lmb,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::pointer_member_access > > Mptr >
-    constexpr auto pointer_member_access( this Lmb&& lmb, Mptr&& mptr ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m pointer_member_access( this Lmb&& lmb, Mptr&& mptr ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) },
        mptr{ std::forward< Mptr >( mptr ) }]< class Self, class... Ts >( Ts&&... args )
           SL_expr_equiv_declval(
@@ -656,13 +656,13 @@ namespace short_lambda {
 
     template < class T, details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ > >... Args >
       requires ( std::same_as< Args, self_t > || ... )
-    constexpr friend auto new_( Args&&... args1 ) SL_expr_equiv(
+    SL_using_f new_( Args&&... args1 ) SL_expr_equiv(
         [... args1{ std::forward< Args >( args1 ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
             ( function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( std::declval< Args >( ) )... ) ),
             function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( args1 )... ) ) )
 
     template < bool Array = false, class Lmb >
-    constexpr auto delete_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+    SL_using_m delete_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( Ts&&... args ) SL_expr_equiv_declval(
           ( function_object::delete_( SL_forward_like_app( std::declval< Lmb >( ) ),
                                       std::integral_constant< bool, Array >{ } ) ),
@@ -763,15 +763,14 @@ namespace short_lambda {
       constexpr operator U&( this Self&& self ) SL_expr_equiv_no_ret( details::forward_like< Self >( self.value ) )
 
       template < class... Ts, class Self >
-      constexpr auto operator( )( this Self&& self, Ts&&... args )
+      SL_using_m operator( )( this Self&& self, Ts&&... args )
           SL_expr_equiv( details::forward_like< Self >( self.value ) )
     };
 
 
     template < class T, std::size_t id = 0 > inline static storage_t< T > storage{ };
 
-    template < class U, std::size_t id = 0 >
-    constexpr inline static auto _$ = coprojector_t< U >{ }( storage< U, id > );
+    template < class U, std::size_t id = 0 > SL_using_v _$ = coprojector_t< U >{ }( storage< U, id > );
 
   } // namespace factory
 
@@ -789,3 +788,6 @@ namespace short_lambda {
 #undef SL_remove_parenthesis
 
 #undef SL_using_v
+#undef SL_using_m
+#undef SL_using_st
+#undef SL_using_f
