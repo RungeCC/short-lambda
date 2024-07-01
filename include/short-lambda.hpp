@@ -746,10 +746,10 @@ namespace short_lambda {
     SL_using_v $7 = lambda{ projector_t< 7 >{} };
     SL_using_v $8 = lambda{ projector_t< 8 >{} };
     SL_using_v $9 = lambda{ projector_t< 9 >{} };
-    SL_using_v $_ = lift_t{ };
+    SL_using_v $  = lift_t{ };
 
     template < class U > struct coprojector_t {
-      template < class T > SL_using_v operator( )( T&& arg ) SL_expr_equiv( $_( static_cast< U& >( arg ) ) )
+      template < class T > SL_using_v operator( )( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
     };
 
     template < class T >
@@ -767,7 +767,7 @@ namespace short_lambda {
 
     template < class T, std::size_t id = 0 > inline static storage_t< T > storage{ };
 
-    template < class U, std::size_t id = 0 > SL_using_v _$ = coprojector_t< U >{ }( storage< U, id > );
+    template < class U, std::size_t id = 0 > SL_using_v $_ = coprojector_t< U >{ }( storage< U, id > );
 
   } // namespace factory
 
