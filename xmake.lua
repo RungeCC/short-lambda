@@ -23,6 +23,7 @@ target("short-lambda.module")
 do
   set_kind("moduleonly")
   add_files("module/short-lambda.cppm", { public = true })
+  add_headerfiles("module/*.hpp")
   set_policy("build.c++.modules", true)
 end
 

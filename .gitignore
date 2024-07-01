@@ -198,3 +198,8 @@ build/
 
 ### generate cmake files
 CMakeLists.txt
+
+### direnv ###
+.direnv
+.envrc
+
