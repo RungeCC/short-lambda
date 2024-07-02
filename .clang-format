@@ -42,7 +42,7 @@ BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 BreakStringLiterals: true
 # BreakTemplateDeclarations: MultiLine #v19
-ColumnLimit: 120
+ColumnLimit: 100
 CommentPragmas: '^nobreak:'
 CompactNamespaces: true
 ConstructorInitializerIndentWidth: 2

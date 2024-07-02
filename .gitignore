@@ -188,6 +188,7 @@ _deps
 # Xmake cache
 .xmake/
 build/
+clion/
 
 ### cache
 .cache/
