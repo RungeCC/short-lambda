@@ -35,6 +35,7 @@ function make_example(name)
 end
 
 make_example("moduleonly")
+make_example("forwarding-noexcept")
 
 target("example.headeronly", {
   kind = "binary",

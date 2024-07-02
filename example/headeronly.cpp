@@ -5,22 +5,7 @@
 using namespace short_lambda;
 
 
-struct P {
-  void operator!( ) noexcept { }
-};
 
-struct Q {
-  void operator!( ) noexcept( false ) { }
-};
-
-struct R {
-  void operator+( P const& ) { }
-};
-
-
-template < auto x > struct K { };
-
-//
 int main( ) {
   auto ptr = static_cast< auto ( * )( std::basic_ostream< char >& )->std::basic_ostream< char >& >(
       std::endl );

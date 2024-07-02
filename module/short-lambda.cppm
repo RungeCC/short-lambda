@@ -723,7 +723,8 @@ export namespace short_lambda {
           /*false branch*/
           ( lambda{ [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
                         this Self&& self,
-                        Ts&&... args ) -> auto { return v; } } ),
+                        Ts&&... args ) noexcept( noexcept( auto{
+                        std::declval< T& >( ) } ) ) -> auto { return v; } } ),
           /*declval true branch*/
           ( lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
                         this Self&& self,
@@ -733,7 +734,8 @@ export namespace short_lambda {
           /*declval false branch*/
           ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
                         this Self&& self,
-                        Ts&&... args ) -> auto { return v; } } ) )
+                        Ts&&... args ) noexcept( noexcept( auto{
+                        std::declval< T& >( ) } ) ) -> auto { return v; } } ) )
     };
 
 
