@@ -34,9 +34,13 @@
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
 
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
-#define SL_using_v                     [[maybe_unused]] static constexpr inline auto
-#define SL_using_m                     [[maybe_unused]] constexpr inline auto
-#define SL_using_f                     [[maybe_unused]] friend constexpr inline auto
+#if defined( _MSC_VER )
+#  define SL_using_v [[maybe_unused]] constexpr inline auto
+#else
+#  define SL_using_v [[maybe_unused]] static constexpr inline auto
+#endif
+#define SL_using_m [[maybe_unused]] constexpr inline auto
+#define SL_using_f [[maybe_unused]] friend constexpr inline auto
 
 #define SL_noexcept_equiv_conditional( cond, b1, b2 )                                              \
   noexcept( []( ) constexpr {                                                                      \

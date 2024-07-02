@@ -49,8 +49,6 @@
 #define SL_forward_like_app( ... )                                                                 \
   details::forward_like< Self >( __VA_ARGS__ )( std::forward< Ts >( args )... )
 
-#define SL_forward_like_app_lmb( ... )                                                                 \
-  details::forward_like< Lmb >( __VA_ARGS__ )( std::forward< Ts >( args )... )
 #define SL_remove_parenthesis_1( ... ) __VA_ARGS__
 #define SL_remove_parenthesis_0( X )   X
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
