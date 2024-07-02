@@ -797,7 +797,7 @@ namespace short_lambda {
           ( lambda{ [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
                         this Self&& self,
                         Ts&&... args ) noexcept( noexcept( auto{
-                        +std::declval< T& >( ) } ) ) -> auto { return v; } } ),
+                        std::declval< T& >( ) } ) ) -> auto { return v; } } ),
           /*true branch declval*/
           ( lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
                         this Self&& self,
@@ -808,7 +808,7 @@ namespace short_lambda {
           ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
                         this Self&& self,
                         Ts&&... args ) noexcept( noexcept( auto{
-                        +std::declval< T& >( ) } ) ) -> auto { return v; } } ) )
+                        std::declval< T& >( ) } ) ) -> auto { return v; } } ) )
     };
 
 
