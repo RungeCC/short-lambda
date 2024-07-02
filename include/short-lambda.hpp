@@ -35,10 +35,11 @@
 
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
 #if defined( _MSC_VER )
-#  define SL_using_v [[maybe_unused]] constexpr inline auto
+#  define SL_using_c [[maybe_unused]] constexpr inline auto
 #else
-#  define SL_using_v [[maybe_unused]] static constexpr inline auto
+#  define SL_using_c [[maybe_unused]] static constexpr inline auto
 #endif
+#define SL_using_v [[maybe_unused]] static constexpr inline auto
 #define SL_using_m [[maybe_unused]] constexpr inline auto
 #define SL_using_f [[maybe_unused]] friend constexpr inline auto
 
@@ -195,7 +196,7 @@ namespace short_lambda {
 #define SL_define_binary_op( name, op )                                                            \
   struct name##_t {                                                                                \
     template < class LHS, class RHS >                                                              \
-    SL_using_v operator( )( LHS&& lhs, RHS&& rhs ) SL_expr_equiv(                                  \
+    SL_using_c operator( )( LHS&& lhs, RHS&& rhs ) SL_expr_equiv(                                  \
         std::forward< LHS >( lhs ) SL_remove_parenthesis( op ) std::forward< RHS >( rhs ) )        \
   } SL_using_st( name ){ };
 
@@ -243,7 +244,7 @@ namespace short_lambda {
 #define SL_define_unary_op( name, op )                                                             \
   struct name##_t {                                                                                \
     template < class Operand >                                                                     \
-    SL_using_v operator( )( Operand&& arg )                                                        \
+    SL_using_c operator( )( Operand&& arg )                                                        \
         SL_expr_equiv( SL_remove_parenthesis( op ) std::forward< Operand >( arg ) )                \
   } SL_using_st( name ){ };
 
@@ -260,17 +261,17 @@ namespace short_lambda {
 
     struct post_increment_t {
       template < class Operand >
-      SL_using_v operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg )-- )
+      SL_using_c operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg )-- )
     } SL_using_st( post_increment ){ };
 
     struct post_decrement_t {
       template < class Operand >
-      SL_using_v operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg )-- )
+      SL_using_c operator( )( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg )-- )
     } SL_using_st( post_decrement ){ };
 
     struct object_member_access_of_pointer_t {
       template < class Operand >
-      SL_using_v operator( )( Operand&& arg )
+      SL_using_c operator( )( Operand&& arg )
           SL_expr_equiv( std::forward< Operand >( arg ).operator->( ) )
     } SL_using_st( object_member_access_of_pointer ){ };
 
@@ -279,7 +280,7 @@ namespace short_lambda {
 
     struct pointer_member_access_t { // a.*b
       template < class LHS, class RHS >
-      SL_using_v operator( )( LHS&& lhs, RHS&& rhs )
+      SL_using_c operator( )( LHS&& lhs, RHS&& rhs )
           SL_expr_equiv( std::forward< LHS >( lhs ).*( std::forward< RHS >( rhs ) ) )
     } SL_using_st( pointer_member_access ){ };
 
@@ -287,50 +288,50 @@ namespace short_lambda {
 
     struct function_call_t {
       template < class F, class... Args >
-      SL_using_v operator( )( F&& f, Args&&... args )
+      SL_using_c operator( )( F&& f, Args&&... args )
           SL_expr_equiv( std::forward< F >( f )( std::forward< Args >( args )... ) )
     } SL_using_st( function_call ){ };
 
     struct subscript_t {
       template < class Array, class... Idx >
-      SL_using_v operator( )( Array&& arr, Idx&&... idx )
+      SL_using_c operator( )( Array&& arr, Idx&&... idx )
           SL_expr_equiv( std::forward< Array >( arr )[ std::forward< Idx >( idx )... ] )
     } SL_using_st( subscript ){ };
 
     struct conditional_t {
       template < class Cond, class TrueB, class FalseB >
-      SL_using_v operator( )( Cond&& cond, TrueB&& trueb, FalseB&& falseb )
+      SL_using_c operator( )( Cond&& cond, TrueB&& trueb, FalseB&& falseb )
           SL_expr_equiv( std::forward< Cond >( cond ) ? std::forward< TrueB >( trueb )
                                                       : std::forward< FalseB >( falseb ) )
     } SL_using_st( conditional ){ };
 
     struct static_cast_t {
       template < class Target, class Op >
-      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+      SL_using_c operator( )( Op&& arg, std::type_identity< Target > target = { } )
           SL_expr_equiv( static_cast< Target >( std::forward< Op >( arg ) ) )
     } SL_using_st( static_cast_ ){ };
 
     struct const_cast_t {
       template < class Target, class Op >
-      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+      SL_using_c operator( )( Op&& arg, std::type_identity< Target > target = { } )
           SL_expr_equiv( const_cast< Target >( std::forward< Op >( arg ) ) )
     } SL_using_st( const_cast_ ){ };
 
     struct dynamic_cast_t {
       template < class Target, class Op >
-      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+      SL_using_c operator( )( Op&& arg, std::type_identity< Target > target = { } )
           SL_expr_equiv( dynamic_cast< Target >( std::forward< Op >( arg ) ) )
     } SL_using_st( dynamic_cast_ ){ };
 
     struct reinterpret_cast_t {
       template < class Target, class Op >
-      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+      SL_using_c operator( )( Op&& arg, std::type_identity< Target > target = { } )
           SL_expr_equiv( reinterpret_cast< Target >( std::forward< Op >( arg ) ) )
     } SL_using_st( reinterpret_cast_ ){ };
 
     struct cstyle_cast_t {
       template < class Target, class Op >
-      SL_using_v operator( )( Op&& arg, std::type_identity< Target > target = { } )
+      SL_using_c operator( )( Op&& arg, std::type_identity< Target > target = { } )
           SL_expr_equiv( (Target) ( std::forward< Op >( arg ) ) )
     } SL_using_st( cstyle_cast ){ };
 
@@ -345,12 +346,12 @@ namespace short_lambda {
 
     struct noexcept_t {
       /// @note: this operator can not work as expected, so we delete it
-      template < class Op > SL_using_v operator( )( Op&& arg ) noexcept -> bool = delete;
+      template < class Op > SL_using_c operator( )( Op&& arg ) noexcept -> bool = delete;
     } SL_using_st( noexcept_ ){ };
 
     struct decltype_t {
       template < class Op, bool id = false >
-      SL_using_v operator( )( Op&& arg, std::integral_constant< bool, id > = { } ) noexcept
+      SL_using_c operator( )( Op&& arg, std::integral_constant< bool, id > = { } ) noexcept
         requires ( ( id && requires { std::type_identity< decltype( arg ) >{ }; } )
                    || ( requires { std::type_identity< decltype( ( arg ) ) >{ }; } ) )
       {
@@ -364,7 +365,7 @@ namespace short_lambda {
 
     struct typeid_t {
       template < class Op >
-      SL_using_v operator( )( Op&& arg ) noexcept
+      SL_using_c operator( )( Op&& arg ) noexcept
         requires requires { std::type_index{ typeid( arg ) }; }
       {
         return std::type_index{ typeid( arg ) };
@@ -373,7 +374,7 @@ namespace short_lambda {
 
     struct sizeof_t {
       template < class Op >
-      SL_using_v operator( )( Op&& arg ) noexcept
+      SL_using_c operator( )( Op&& arg ) noexcept
         requires requires { sizeof( arg ); }
       {
         return sizeof( arg );
@@ -382,7 +383,7 @@ namespace short_lambda {
 
     struct alignof_t {
       template < class Op >
-      SL_using_v operator( )( Op&& arg ) noexcept
+      SL_using_c operator( )( Op&& arg ) noexcept
         requires requires { alignof( std::remove_cvref_t< Op > ); }
       {
         return alignof( std::remove_cvref_t< Op > );
@@ -391,13 +392,13 @@ namespace short_lambda {
 
     struct new_t {
       template < class T0, class... Ts >
-      SL_using_v operator( )( std::type_identity< T0 > arg0, Ts&&... args )
+      SL_using_c operator( )( std::type_identity< T0 > arg0, Ts&&... args )
           SL_expr_equiv( new T0{ std::forward< Ts >( args )... } )
     } SL_using_st( new_ ){ };
 
     struct delete_t {
       template < bool Array = false, class Op >
-      SL_using_v operator( )( Op&& arg, std::integral_constant< bool, Array > = { } )
+      SL_using_c operator( )( Op&& arg, std::integral_constant< bool, Array > = { } )
           noexcept( ( Array && noexcept( delete[] arg ) ) || ( noexcept( delete arg ) ) )
               ->decltype( auto )
         requires ( ( Array && requires { delete[] arg; } ) || ( requires { delete arg; } ) )
@@ -412,7 +413,7 @@ namespace short_lambda {
 
     struct co_await_t {
       template < class Op >
-      SL_using_v operator( )( Op&& arg )
+      SL_using_c operator( )( Op&& arg )
           noexcept( ( requires { std::forward< Op >( arg ).operator co_await( ); }
                       && noexcept( std::forward< Op >( arg ).operator co_await( ) ) )
                     || ( requires { operator co_await( std::forward< Op >( arg ) ); }
@@ -434,7 +435,7 @@ namespace short_lambda {
 
     struct then_t {
       template < class LHS, class RHS >
-      SL_using_v operator( )( LHS&& lhs, RHS&& rhs )
+      SL_using_c operator( )( LHS&& lhs, RHS&& rhs )
           noexcept( noexcept( lhs ) && noexcept( std::forward< RHS >( rhs ) ) )
               ->decltype( auto )
         requires requires {
@@ -785,7 +786,7 @@ namespace short_lambda {
 
     struct lift_t { // forwarding construct received argument
       template < class T >
-      SL_using_v operator( )( T&& value ) SL_expr_equiv_conditional(
+      SL_using_c operator( )( T&& value ) SL_expr_equiv_conditional(
           /*conditional*/ (std::is_lvalue_reference_v< T&& >),
           /*true branch*/
           ( lambda{ [ v = std::addressof( value ) ]< class Self, class... Ts >(
@@ -826,7 +827,7 @@ namespace short_lambda {
 
     template < class U > struct coprojector_t {
       template < class T >
-      SL_using_v operator( )( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
+      SL_using_c operator( )( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
     };
 
     template < class T >
@@ -868,6 +869,7 @@ namespace short_lambda {
 #undef SL_remove_parenthesis
 
 #undef SL_using_v
+#undef SL_using_c
 #undef SL_using_m
 #undef SL_using_st
 #undef SL_using_f
