@@ -14,6 +14,7 @@ struct has_not_noexcept_not {
 };
 
 int main( ) {
-  std::cout << std::boolalpha << noexcept( ( not $( has_noexcept_not{} ) )( ) ) << std::endl;
-  std::cout << std::boolalpha << noexcept( ( not $( has_not_noexcept_not{} ) )( ) ) << std::endl;
+  std::cout << std::boolalpha << ( ( not $( has_noexcept_not{ } ) ).noexcept_( )( ) ) << std::endl;
+  std::cout << std::boolalpha << ( ( not $( has_not_noexcept_not{ } ) ).noexcept_( )( ) )
+            << std::endl;
 }
