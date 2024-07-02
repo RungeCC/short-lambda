@@ -827,12 +827,10 @@ namespace short_lambda {
 
     template < class U > struct coprojector_t {
       template < class T >
-      SL_using_c operator( )( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
+      SL_using_v operator( )( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
     };
 
-    template < class T >
-      requires std::is_default_constructible_v< T >
-    struct storage_t {
+    template < class T > struct storage_t {
       T value;
 
       template < class U, class Self >
@@ -844,10 +842,18 @@ namespace short_lambda {
           SL_expr_equiv( details::forward_like< Self >( self.value ) )
     };
 
-    template < class T, std::size_t id = 0 > inline static storage_t< T > storage{ };
+    template < details::satisfy< std::is_default_constructible > T, std::size_t id = 0 >
+    inline storage_t< T >           storage{ };
+
+    template < auto value, std::size_t id = 0 >
+    SL_using_m constant = storage_t< std::remove_cvref_t< decltype( value ) > const >{ value };
 
     template < class U, std::size_t id = 0 >
-    SL_using_v $_ = coprojector_t< U >{ }( storage< U, id > );
+    SL_using_m $_ = coprojector_t< U >{ }( storage< U, id > );
+
+    template < auto value, std::size_t id = 0 >
+    SL_using_m $c
+        = coprojector_t< std::remove_reference_t< decltype( value ) > >{ }( constant< value, id > );
 
   } // namespace factory
 

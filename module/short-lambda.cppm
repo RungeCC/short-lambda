@@ -484,7 +484,8 @@ export namespace short_lambda {
              details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > >... RHS > \
   SL_using_m name( this Lmb&& lmb, RHS&&... rhs ) SL_expr_equiv( ::short_lambda::lambda {              \
     [lhs{ std::forward< Lmb >( lmb ) },                                                                \
-     ... rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >(this Self&& self,  Ts&&... args )                 \
+     ... rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self,              \
+                                                                        Ts&&... args )                 \
         SL_expr_equiv_declval(                                                                         \
             ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                    \
                                      SL_forward_like_app( std::declval< RHS >( ) )... ) ),             \
@@ -501,7 +502,8 @@ export namespace short_lambda {
              details::satisfy< operator_with_lambda_enabled, operators_t< operators::name > > RHS > \
   SL_using_m name( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda {              \
     [lhs{ std::forward< Lmb >( lmb ) },                                                             \
-     rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >(this Self&& self,  Ts&&... args )                  \
+     rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self,               \
+                                                                    Ts&&... args )                  \
         SL_expr_equiv_declval(                                                                      \
             ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                 \
                                      SL_forward_like_app( std::declval< RHS >( ) ) ) ),             \
@@ -518,7 +520,8 @@ export namespace short_lambda {
   SL_using_m operator SL_remove_parenthesis( op )( this Lmb&& lmb, RHS&& rhs )                      \
       SL_expr_equiv( ::short_lambda::lambda {                                                       \
         [lhs{ std::forward< Lmb >( lmb ) },                                                         \
-         rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >(this Self&& self,  Ts&&... args )              \
+         rhs{ std::forward< RHS >( rhs ) }]< class Self, class... Ts >( this Self&& self,           \
+                                                                        Ts&&... args )              \
             SL_expr_equiv_declval(                                                                  \
                 ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),             \
                                          SL_forward_like_app( std::declval< RHS >( ) ) ) ),         \
@@ -541,7 +544,8 @@ export namespace short_lambda {
   template < class Target, class Lmb >                                                             \
   SL_using_m name( this Lmb&& lmb,                                                                 \
                    std::type_identity< Target > = { } ) SL_expr_equiv( ::short_lambda::lambda {    \
-    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( this Self&& self, Ts&&... args )                 \
+    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( this Self&& self,              \
+                                                                    Ts&&... args )                 \
         SL_expr_equiv_declval(                                                                     \
             ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                \
                                      std::type_identity< Target >{ } ) ),                          \
@@ -559,7 +563,8 @@ export namespace short_lambda {
 #define SL_lambda_member_unary_op_named( name )                                                    \
   template < class Lmb >                                                                           \
   SL_using_m name( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {                        \
-    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >(this Self&& self,  Ts&&... args )                 \
+    [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( this Self&& self,              \
+                                                                    Ts&&... args )                 \
         SL_expr_equiv_declval(                                                                     \
             ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),            \
             function_object::name( SL_forward_like_app( lhs ) ) )                                  \
@@ -767,9 +772,7 @@ export namespace short_lambda {
       SL_using_v operator( )( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
     };
 
-    template < class T >
-      requires std::is_default_constructible_v< T >
-    struct storage_t {
+    template < class T > struct storage_t {
       T value;
 
       template < class U, class Self >
@@ -781,11 +784,18 @@ export namespace short_lambda {
           SL_expr_equiv( details::forward_like< Self >( self.value ) )
     };
 
+    template < details::satisfy< std::is_default_constructible > T, std::size_t id = 0 >
+    inline storage_t< T >           storage{ };
 
-    template < class T, std::size_t id = 0 > inline storage_t< T > storage{ };
+    template < auto value, std::size_t id = 0 >
+    SL_using_m constant = storage_t< std::remove_cvref_t< decltype( value ) > const >{ value };
 
     template < class U, std::size_t id = 0 >
     SL_using_m $_ = coprojector_t< U >{ }( storage< U, id > );
+
+    template < auto value, std::size_t id = 0 >
+    SL_using_m $c
+        = coprojector_t< std::remove_reference_t< decltype( value ) > >{ }( constant< value, id > );
 
   } // namespace factory
 
