@@ -785,7 +785,7 @@ export namespace short_lambda {
     };
 
     template < details::satisfy< std::is_default_constructible > T, std::size_t id = 0 >
-    inline storage_t< T >           storage{ };
+    inline storage_t< T > storage{ };
 
     template < auto value, std::size_t id = 0 >
     SL_using_m constant = storage_t< std::remove_cvref_t< decltype( value ) > const >{ value };
@@ -798,5 +798,47 @@ export namespace short_lambda {
         = coprojector_t< std::remove_reference_t< decltype( value ) > >{ }( constant< value, id > );
 
   } // namespace factory
+
+  inline namespace hkt {
+    template < template < class > class > struct fmap_t;
+
+
+    template <>
+    struct fmap_t< lambda > { // fmap<lambda> :: (a ... -> b) -> lambda<a> ... -> lambda<b>
+      /// @note: This operator() need to be specially handled since if we just copy and paste the
+      ///        lambda body (replace captures by `declval<>()`) it will trigger ICE of both clang and gcc.
+      ///        Possibly due to we try to do some complicate lambda capture in a recursive context.
+      template < class Func >
+      SL_using_v operator( )( Func&& func ) SL_expr_equiv_declval(
+          ( auto{ std::forward< Func >( func ) } ), // only handle copy/move construct capture here,
+                                                    // lambda body is not in immediate context
+                                                    // and since it's a dependent lambda, it's safe
+                                                    // to delay checks
+          [func{ std::forward< Func >(
+              func ) }]< class Self, details::satisfy< is_short_lambda >... Ts >( this Self& self0,
+                                                                                  Ts&&... args0 )
+              SL_expr_equiv_declval(
+                  ( (void) auto{ details::forward_like< Self >( std::declval< Func&& >( ) ) },
+                    ( (void) auto{ std::declval< Ts&& >( ) }, ... ) ), // again, we only check decay
+                                                                       // copy here.
+                  ::short_lambda::lambda {
+                    [
+                      func{ details::forward_like< Self >( func ) },
+                      ... args0{ std::forward< Ts >( args0 ) }
+                    ]< class Self1, class... Ts1 >( this Self1&& self1, Ts1&&... args1 )
+                        SL_expr_equiv_declval(
+                            ( details::forward_like< Self1 >(
+                                details::forward_like< Self >( std::declval< Func&& >( ) ) )(
+                                details::forward_like< Self1 >(
+                                    std::forward< Ts >( std::declval< Ts&& >( ) ) )(
+                                    std::forward< Ts1 >( std::declval< Ts1&& >( ) )... )... ) ),
+                            details::forward_like< Self1 >( func )( details::forward_like< Self1 >(
+                                args0 )( std::forward< Ts1 >( args1 )... )... ) )
+                  } ) )
+    };
+
+    template <template <class>class Func>
+    SL_using_m fmap = fmap_t<Func>{};
+  } // namespace hkt
 
 } // namespace short_lambda

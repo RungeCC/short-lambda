@@ -36,6 +36,7 @@ end
 
 make_example("moduleonly")
 make_example("forwarding-noexcept")
+make_example("fmap")
 
 target("example.headeronly", {
   kind = "binary",
