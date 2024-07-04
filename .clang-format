@@ -28,6 +28,8 @@ AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
+AttributeMacros:
+  - SL_expr_equiv_spec
 BinPackArguments: false
 BinPackParameters: false
 BitFieldColonSpacing: After
@@ -100,7 +102,7 @@ QualifierOrder: # v14
   - volatile
 ReferenceAlignment: Left # v13
 RemoveBracesLLVM: false # v14
-RemoveSemicolon: true
+RemoveSemicolon: false
 RequiresClausePosition: OwnLine # v15
 RequiresExpressionIndentation: Keyword
 SeparateDefinitionBlocks: Leave # v14
@@ -156,5 +158,5 @@ StatementMacros:
   - SL_lambda_member_binary_op
   - SL_lambda_member_binary_op_named
   - SL_lambda_member_cast_op_named
-  - SL_lambda_member_unary_op_named
+  - SL_lambda_member_unary_op_named 
 UseTab: Never

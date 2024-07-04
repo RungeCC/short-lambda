@@ -10,11 +10,12 @@
 #define SL_expr_equiv_bare( ... )                                                                  \
   { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
 
-#define SL_expr_equiv( ... )                                                                       \
+#define SL_expr_equiv_spec( ... )                                                                  \
   noexcept( noexcept( __VA_ARGS__ ) )                                                              \
       ->decltype( auto )                                                                           \
-    requires requires { __VA_ARGS__; }                                                             \
-  SL_expr_equiv_bare( __VA_ARGS__ )
+    requires requires { __VA_ARGS__; }
+
+#define SL_expr_equiv( ... ) SL_expr_equiv_spec( __VA_ARGS__ ) SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_expr_equiv_no_ret( ... )                                                                \
   noexcept( noexcept( __VA_ARGS__ ) )                                                              \
@@ -22,10 +23,7 @@
   SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_expr_equiv_declval( req, ... )                                                          \
-  noexcept( noexcept( req ) )                                                                      \
-      ->decltype( auto )                                                                           \
-    requires requires { req; }                                                                     \
-  SL_expr_equiv_bare( __VA_ARGS__ )
+  SL_expr_equiv_spec( req ) SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_forward_like_app( ... )                                                                 \
   details::forward_like< Self >( __VA_ARGS__ )( std::forward< Ts >( args )... )
@@ -858,14 +856,16 @@ namespace short_lambda {
   } // namespace factory
 
   inline namespace hkt {
-    template < template < class > class > struct fmap_t;
-
+    template < template < class > class > struct fmap_t; // Functor
+    template < template < class > class > struct pure_t; // Applicative
+    template < template < class > class > struct bind_t; // Monad
 
     template <>
     struct fmap_t< lambda > { // fmap<lambda> :: (a ... -> b) -> lambda<a> ... -> lambda<b>
       /// @note: This operator() need to be specially handled since if we just copy and paste the
-      ///        lambda body (replace captures by `declval<>()`) it will trigger ICE of both clang and gcc.
-      ///        Possibly due to we try to do some complicate lambda capture in a recursive context.
+      ///        lambda body (replace captures by `declval<>()`) it will trigger ICE of both clang
+      ///        and gcc. Possibly due to we try to do some complicate lambda capture in a recursive
+      ///        context.
       template < class Func >
       SL_using_v operator( )( Func&& func ) SL_expr_equiv_declval(
           ( auto{ std::forward< Func >( func ) } ), // only handle copy/move construct capture here,
@@ -894,9 +894,34 @@ namespace short_lambda {
                                 args0 )( std::forward< Ts1 >( args1 )... )... ) )
                   } ) )
     };
+    template <> struct pure_t< lambda >: lift_t { };
+    template <> struct bind_t< lambda > {
+      template < details::satisfy< is_short_lambda >... Ts1 >
+      SL_using_v operator( )( Ts1&&... as )
+          SL_expr_equiv_spec( ( (void) auto{ std::declval< Ts1&& >( ) }, ... ) ) {
+        return [... as{ std::forward< Ts1 >( as ) } ]< class Self, class Func >( this Self&& self,
+                                                                                 Func&&      func )
+                   SL_expr_equiv_spec( (void) auto{ details::forward_like< Self >(
+                                           std::declval< Func >( ) ) },
+                                       ( (void) auto{ details::forward_like< Self >(
+                                             std::declval< Ts1&& >( ) ) },
+                                         ... ) ) {
+                     return lambda {
+                       [
+                         func{ details::forward_like< Self >( func ) },
+                         ... as{ details::forward_like< Self >( as ) }
+                       ]< class Self1, class... Ts >( this Self1&& self1, Ts&&... args )
+                           SL_expr_equiv( details::forward_like< Self1 >( func )(
+                               details::forward_like< Self1 >( as )( std::forward< Ts >(
+                                   args )... )... )( std::forward< Ts >( args )... ) )
+                     };
+                   };
+      }
+    };
 
-    template <template <class>class Func>
-    SL_using_v fmap = fmap_t<Func>{};
+    template < template < class > class Func > SL_using_v fmap = fmap_t< Func >{ };
+    template < template < class > class Func > SL_using_v pure = pure_t< Func >{ };
+    template < template < class > class Func > SL_using_v bind = bind_t< Func >{ };
   }; // namespace hkt
 
 } // namespace short_lambda

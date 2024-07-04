@@ -1,11 +1,12 @@
 #define SL_expr_equiv_bare( ... )                                                                  \
   { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
 
-#define SL_expr_equiv( ... )                                                                       \
+#define SL_expr_equiv_spec( ... )                                                                  \
   noexcept( noexcept( __VA_ARGS__ ) )                                                              \
       ->decltype( auto )                                                                           \
-    requires requires { __VA_ARGS__; }                                                             \
-  SL_expr_equiv_bare( __VA_ARGS__ )
+    requires requires { __VA_ARGS__; }
+
+#define SL_expr_equiv( ... ) SL_expr_equiv_spec( __VA_ARGS__ ) SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_expr_equiv_no_ret( ... )                                                                \
   noexcept( noexcept( __VA_ARGS__ ) )                                                              \
@@ -13,10 +14,7 @@
   SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_expr_equiv_declval( req, ... )                                                          \
-  noexcept( noexcept( req ) )                                                                      \
-      ->decltype( auto )                                                                           \
-    requires requires { req; }                                                                     \
-  SL_expr_equiv_bare( __VA_ARGS__ )
+  SL_expr_equiv_spec( req ) SL_expr_equiv_bare( __VA_ARGS__ )
 
 #define SL_noexcept_equiv_conditional( cond, b1, b2 )                                              \
   noexcept( []( ) constexpr {                                                                      \
