@@ -898,11 +898,11 @@ namespace short_lambda {
     template <> struct bind_t< lambda > {
       // bind<lambda> :: lambda<a>... -> (a... -> lambda<b>) -> lambda<b>
       template < details::satisfy< is_short_lambda >... Ts1 >
-      SL_using_v operator( )( Ts1&&... as )
+      SL_using_v operator( )( Ts1&&... as ) // lambda<a>...
           SL_expr_equiv_spec( ( (void) auto{ std::declval< Ts1&& >( ) }, ... ) ) {
-        return
-            [... as{ std::forward< Ts1 >( as ) } ]< class Self, class Func >( this Self&& self,
-                                                                              Func&&      func )
+        return // f :: a... -> lambda<b>
+            [... as{ std::forward< Ts1 >( as ) } ]< class Self, class Func >( this Self&& self, 
+                                                                              Func&&      func ) 
                 SL_expr_equiv_spec( (void) auto{ details::forward_like< Self >(
                                         std::declval< Func >( ) ) },
                                     ( (void) auto{ details::forward_like< Self >(
@@ -918,7 +918,7 @@ namespace short_lambda {
                                      details::forward_like< Self >( std::declval< Func && >( ) ) )(
                                      details::forward_like< Self1 >( std::declval< Ts1 && >( ) )(
                                          std::forward< Ts >( std::declval< Ts && >( ) )... )... ) ),
-                                 is_short_lambda > )
+                                 is_short_lambda > ) // ensure that f(a(...)...) is lambda<b>
                     ( this Self1&& self1, Ts&&... args ) SL_expr_equiv(
                         details::forward_like< Self1 >( func )( details::forward_like< Self1 >( as )(
                             std::forward< Ts >( args )... )... )( std::forward< Ts >( args )... ) )
