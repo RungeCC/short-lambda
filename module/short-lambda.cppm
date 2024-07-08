@@ -1,6 +1,7 @@
 module;
 
 #include "macros.hpp"
+#include "config.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -234,11 +235,21 @@ export namespace short_lambda {
           SL_expr_equiv( std::forward< F >( f )( std::forward< Args >( args )... ) )
     } SL_using_st( function_call ){ };
 
+#if not ( defined( SL_cxx_msvc ) or defined( SL_anal_resharper ) )
+    /// @note: msvc does not support multiple index subscript operator
+    ///        resharper++ obeys msvc's prefer.
     struct subscript_t {
       template < class Array, class... Idx >
       SL_using_v operator( )( Array&& arr, Idx&&... idx )
           SL_expr_equiv( std::forward< Array >( arr )[ std::forward< Idx >( idx )... ] )
     } SL_using_st( subscript ){ };
+#else
+    struct subscript_t {
+      template < class Array, class Idx >
+      SL_using_v operator( )( Array&& arr, Idx&& idx )
+          SL_expr_equiv( std::forward< Array >( arr )[ std::forward< Idx >( idx ) ] )
+    } SL_using_st( subscript ){ };
+#endif
 
     struct conditional_t {
       template < class Cond, class TrueB, class FalseB >

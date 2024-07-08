@@ -1,5 +1,23 @@
 #pragma once
 
+#if defined( _MSC_VER )
+#  define SL_cxx_msvc
+#elif defined( __clang__ )
+#  define SL_cxx_clang
+#elif defined( __GNUC__ )
+#  define SL_cxx_gcc
+#elif
+static_assert( false, "unsupported compiler" );
+#endif
+
+#if defined(__RESHARPER__)
+#define SL_anal_resharper
+#elif defined(__INTELLISENSE__)
+#define SL_anal_intellisense
+#elif defined(__clangd__)
+#define SL_anal_clangd
+#endif
+
 #include <cstddef>
 #include <memory>
 #include <tuple>
@@ -32,7 +50,8 @@
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
 
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
-#if defined( _MSC_VER )
+#if defined( SL_cxx_msvc )
+/// @note: msvc currently do not support `static operator()`
 #  define SL_using_c [[maybe_unused]] constexpr inline auto
 #else
 #  define SL_using_c [[maybe_unused]] static constexpr inline auto
@@ -290,11 +309,21 @@ namespace short_lambda {
           SL_expr_equiv( std::forward< F >( f )( std::forward< Args >( args )... ) )
     } SL_using_st( function_call ){ };
 
+#if not ( defined( SL_cxx_msvc ) or defined( SL_anal_resharper ) )
+    /// @note: msvc does not support multiple index subscript operator
+    ///        resharper++ obeys msvc's prefer.
     struct subscript_t {
       template < class Array, class... Idx >
       SL_using_c operator( )( Array&& arr, Idx&&... idx )
           SL_expr_equiv( std::forward< Array >( arr )[ std::forward< Idx >( idx )... ] )
     } SL_using_st( subscript ){ };
+#else
+    struct subscript_t {
+      template < class Array, class Idx >
+      SL_using_c operator( )( Array&& arr, Idx&& idx )
+          SL_expr_equiv( std::forward< Array >( arr )[ std::forward< Idx >( idx ) ] )
+    } SL_using_st( subscript ){ };
+#endif
 
     struct conditional_t {
       template < class Cond, class TrueB, class FalseB >
@@ -901,8 +930,8 @@ namespace short_lambda {
       SL_using_v operator( )( Ts1&&... as ) // lambda<a>...
           SL_expr_equiv_spec( ( (void) auto{ std::declval< Ts1&& >( ) }, ... ) ) {
         return // f :: a... -> lambda<b>
-            [... as{ std::forward< Ts1 >( as ) } ]< class Self, class Func >( this Self&& self, 
-                                                                              Func&&      func ) 
+            [... as{ std::forward< Ts1 >( as ) } ]< class Self, class Func >( this Self&& self,
+                                                                              Func&&      func )
                 SL_expr_equiv_spec( (void) auto{ details::forward_like< Self >(
                                         std::declval< Func >( ) ) },
                                     ( (void) auto{ details::forward_like< Self >(
@@ -933,24 +962,3 @@ namespace short_lambda {
   }; // namespace hkt
 
 } // namespace short_lambda
-
-
-#undef SL_expr_equiv
-#undef SL_expr_equiv_declval
-#undef SL_expr_equiv_bare
-#undef SL_expr_equiv_no_ret
-
-#undef SL_noexcept_equiv_conditional
-#undef SL_SFINAE_equiv_conditional
-#undef SL_expr_equiv_conditional
-
-#undef SL_forward_like_app
-#undef SL_remove_parenthesis_1
-#undef SL_remove_parenthesis_0
-#undef SL_remove_parenthesis
-
-#undef SL_using_v
-#undef SL_using_c
-#undef SL_using_m
-#undef SL_using_st
-#undef SL_using_f
