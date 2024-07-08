@@ -55,3 +55,9 @@
 #define SL_using_v                     [[maybe_unused]] static constexpr inline auto
 #define SL_using_m                     [[maybe_unused]] constexpr inline auto
 #define SL_using_f                     [[maybe_unused]] friend constexpr inline auto
+#if defined( SL_cxx_msvc )
+/// @note: msvc currently do not support `static operator()`
+#  define SL_using_c [[maybe_unused]] constexpr inline auto
+#else
+#  define SL_using_c [[maybe_unused]] static constexpr inline auto
+#endif

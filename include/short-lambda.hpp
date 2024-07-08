@@ -896,7 +896,7 @@ namespace short_lambda {
       ///        and gcc. Possibly due to we try to do some complicate lambda capture in a recursive
       ///        context.
       template < class Func >
-      SL_using_v operator( )( Func&& func ) SL_expr_equiv_declval(
+      SL_using_c operator( )( Func&& func ) SL_expr_equiv_declval(
           ( auto{ std::forward< Func >( func ) } ), // only handle copy/move construct capture here,
                                                     // lambda body is not in immediate context
                                                     // and since it's a dependent lambda, it's safe
@@ -927,7 +927,7 @@ namespace short_lambda {
     template <> struct bind_t< lambda > {
       // bind<lambda> :: lambda<a>... -> (a... -> lambda<b>) -> lambda<b>
       template < details::satisfy< is_short_lambda >... Ts1 >
-      SL_using_v operator( )( Ts1&&... as ) // lambda<a>...
+      SL_using_c operator( )( Ts1&&... as ) // lambda<a>...
           SL_expr_equiv_spec( ( (void) auto{ std::declval< Ts1&& >( ) }, ... ) ) {
         return // f :: a... -> lambda<b>
             [... as{ std::forward< Ts1 >( as ) } ]< class Self, class Func >( this Self&& self,
