@@ -10,12 +10,12 @@
 static_assert( false, "unsupported compiler" );
 #endif
 
-#if defined(__RESHARPER__)
-#define SL_anal_resharper
-#elif defined(__INTELLISENSE__)
-#define SL_anal_intellisense
-#elif defined(__clangd__)
-#define SL_anal_clangd
+#if defined( __RESHARPER__ )
+#  define SL_anal_resharper
+#elif defined( __INTELLISENSE__ )
+#  define SL_anal_intellisense
+#elif defined( __clangd__ )
+#  define SL_anal_clangd
 #endif
 
 #include <cstddef>
@@ -50,8 +50,8 @@ static_assert( false, "unsupported compiler" );
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
 
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
-#if defined( SL_cxx_msvc )
-/// @note: msvc currently do not support `static operator()`
+#if not defined( __cpp_static_call_operator )
+/// @note: msvc currently do not support `static operator()`, so we need a feature test macro here
 #  define SL_using_c [[maybe_unused]] constexpr inline auto
 #else
 #  define SL_using_c [[maybe_unused]] static constexpr inline auto
@@ -186,6 +186,8 @@ namespace short_lambda {
     delete_,        // TBD
     co_await_ = 59, // ^ special, v extra, provide by me
     then      = 60, // expression-equivalent to `(void)lhs, rhs`
+    typeof_,        // typeof_(x) := decltype((x)), they are c23 keyword, so we add a _ suffix
+    typeof_unqual_  // typeof_unqual_(x) := std::remove_cvref_t<decltype((x))>
   };
 
   template < operators op > struct operators_t {
@@ -426,9 +428,21 @@ namespace short_lambda {
     struct delete_t {
       template < bool Array = false, class Op >
       SL_using_c operator( )( Op&& arg, std::integral_constant< bool, Array > = { } )
-          noexcept( ( Array && noexcept( delete[] arg ) ) || ( noexcept( delete arg ) ) )
+          noexcept( []( ) {
+            if constexpr ( Array ) {
+              return noexcept( delete[] arg );
+            } else {
+              return noexcept( delete arg );
+            }
+          }( ) )
               ->decltype( auto )
-        requires ( ( Array && requires { delete[] arg; } ) || ( requires { delete arg; } ) )
+        requires ( []( ) {
+          if constexpr ( Array ) {
+            return requires { delete[] arg; };
+          } else {
+            return requires { delete arg; };
+          }
+        }( ) )
       {
         if constexpr ( Array ) {
           delete[] arg;
@@ -475,6 +489,17 @@ namespace short_lambda {
       }
     } SL_using_st( then ){ };
 
+    struct typeof_t {
+      template < class Op >
+      SL_using_c operator( )( Op&& arg )
+          SL_expr_equiv( std::type_identity< decltype( ( arg ) ) >{ } )
+    } SL_using_st( typeof_ ){ };
+
+    struct typeof_unqual_t {
+      template < class Op >
+      SL_using_c operator( )( Op&& arg )
+          SL_expr_equiv( std::type_identity< std::remove_cvref_t< decltype( ( arg ) ) > >{ } )
+    } SL_using_st( typeof_unqual_ ){ };
 
   } // namespace function_object
 
@@ -554,8 +579,8 @@ namespace short_lambda {
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::then > > RHS >
     SL_using_m then( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda{
         [ lhs{ std::forward< Lmb >( lmb ) }, rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >( this Self&& self, Ts&&... args ) noexcept(
-            noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) && noexcept(
-                SL_forward_like_app( std::declval< RHS >( ) ) ) ) ) -> decltype( auto )
+            noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) ) && noexcept(
+                SL_forward_like_app( std::declval< RHS >( ) ) ) ) -> decltype( auto )
           requires (
               requires { SL_forward_like_app( std::declval< Lmb >( ) ); }
               && requires { SL_forward_like_app( std::declval< RHS >( ) ); } )
@@ -659,6 +684,8 @@ namespace short_lambda {
     SL_lambda_member_unary_op_named( typeid_ )
     SL_lambda_member_unary_op_named( sizeof_ )
     SL_lambda_member_unary_op_named( alignof_ )
+    SL_lambda_member_unary_op_named( typeof_ )
+    SL_lambda_member_unary_op_named( typeof_unqual_ )
     SL_lambda_member_unary_op_named( co_await_ )
 
 #undef SL_lambda_member_unary_op_named
@@ -772,26 +799,46 @@ namespace short_lambda {
 
     template < class T,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ > >... Args >
-      requires ( std::same_as< Args, self_t > || ... )
-    SL_using_f new_( Args&&... args1 ) SL_expr_equiv(
+    SL_using_f new_( std::type_identity< T >, Args&&... args1 )
+        noexcept( noexcept( ::short_lambda::lambda{
+            [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >( this Self&& self,
+                                                                                Ts&&... args ) {
+              return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
+            } } ) ) -> decltype( auto )
+      requires requires {
+                 ::short_lambda::lambda{
+                     [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >(
+                         this Self&& self,
+                         Ts&&... args ) {
+                       return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
+                     } };
+               }
+    {
+      return ::short_lambda::lambda {
         [... args1{ std::forward< Args >( args1 ) }]< class Self, class... Ts >( this Self&& self,
                                                                                  Ts&&... args )
             SL_expr_equiv_declval(
                 ( function_object::new_( std::type_identity< T >{ },
                                          SL_forward_like_app( std::declval< Args >( ) )... ) ),
-                function_object::new_( std::type_identity< T >{ },
-                                       SL_forward_like_app( args1 )... ) ) )
+                function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( args1 )... ) )
+      };
+    }
 
     template < bool Array = false, class Lmb >
-    SL_using_m delete_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
-      [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( this Self&& self,
-                                                                      Ts&&... args )
-          SL_expr_equiv_declval(
-              ( function_object::delete_( SL_forward_like_app( std::declval< Lmb >( ) ),
-                                          std::integral_constant< bool, Array >{ } ) ),
-              function_object::delete_( SL_forward_like_app( lhs ),
-                                        std::integral_constant< bool, Array >{ } ) )
-    } );
+    SL_using_m delete_( this Lmb&& lmb )
+        noexcept( noexcept( auto{ std::declval< Lmb >( ) } ) ) -> decltype( auto )
+      requires requires { auto{ std::declval< Lmb >( ) }; }
+    {
+      return ::short_lambda::lambda {
+        [lhs{ std::forward< Lmb >( lmb ) }]< class Self, class... Ts >( this Self&& self,
+                                                                        Ts&&... args )
+            SL_expr_equiv_declval(
+                ( function_object::delete_( SL_forward_like_app( std::declval< Lmb >( ) ),
+                                            std::integral_constant< bool, Array >{ } ) ),
+                function_object::delete_( SL_forward_like_app( lhs ),
+                                          std::integral_constant< bool, Array >{ } ) )
+      };
+    }
   };
 
   inline namespace factory {

@@ -37,6 +37,7 @@ end
 make_example("moduleonly")
 make_example("forwarding-noexcept")
 make_example("fmap")
+make_example("new-delete")
 
 target("example.headeronly", {
   kind = "binary",
