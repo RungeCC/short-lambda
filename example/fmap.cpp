@@ -15,7 +15,7 @@ struct has_not_noexcept_not {
 
 int main( ) {
   constexpr static auto my_not
-      = fmap< lambda >( []( auto any ) noexcept( noexcept( not any ) ) -> decltype( auto )
+      = fmap< lambda >( []( auto any ) noexcept( noexcept( not any ) )
                           requires requires { not any; }
                         { return not any; } );
   std::cout << std::boolalpha << ( ( my_not( $0 ) ).noexcept_( )( has_noexcept_not{ } ) )

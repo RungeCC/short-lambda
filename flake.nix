@@ -14,7 +14,7 @@
     };
   in {
     devShells.default = pkgs.mkShell.override {
-      stdenv = pkgs.llvmPackages_18.libcxxStdenv;
+      stdenv = pkgs.gcc14Stdenv;
     } rec {
       name = "short-lambda.cpp";
 
@@ -28,7 +28,7 @@
         xmake
         cmake
         ninja
-        llvmPackages_18.clang
+        clang_18
 	    ];
       # see https://github.com/xmake-io/xmake/issues/5138 and https://github.com/NixOS/nixpkgs/issues/314313
       shellHook = ''

@@ -3,12 +3,13 @@ module;
 #include "config.hpp"
 #include "macros.hpp"
 
+#include <concepts>
 #include <cstddef>
 #include <memory>
-#include <tuple>
 #include <type_traits>
 #include <typeindex>
 #include <utility>
+
 
 export module short_lambda;
 
@@ -37,6 +38,62 @@ namespace short_lambda::details {
     } else {
       return std::move( x );
     }
+  }
+
+  template < class T > struct tuple_leaf_impl {
+    T value;
+  };
+
+  template < std::size_t id, class T > struct tuple_leaf: tuple_leaf_impl< T > {
+    template < class U >
+      requires std::convertible_to< U&&, T >
+    constexpr tuple_leaf( U&& u ): tuple_leaf_impl< T >{ std::forward< U >( u ) } { }
+  };
+
+  template < class, class... Ts > struct tuple_impl;
+
+  template < std::size_t... Is, class... Ts >
+  struct tuple_impl< std::index_sequence< Is... >, Ts... >: tuple_leaf< Is, Ts >... {
+    template < class... Us >
+      requires ( sizeof...( Us ) == sizeof...( Ts ) && ( std::convertible_to< Us, Ts > && ... ) )
+    constexpr tuple_impl( Us&&... us ): tuple_leaf< Is, Ts >( std::forward< Us >( us ) )... { }
+  };
+  export {
+    template < class... Ts > struct tuple: tuple_impl< std::index_sequence_for< Ts... >, Ts... > {
+      template < class... Us >
+        requires ( sizeof...( Us ) == sizeof...( Ts ) && ( std::convertible_to< Us, Ts > && ... ) )
+      constexpr tuple( Us&&... us )
+        : tuple_impl< std::index_sequence_for< Ts... >, Ts... >( std::forward< Us >( us )... ) { }
+    };
+
+    template < class... Ts > tuple( Ts && ... ) -> tuple< Ts... >;
+
+    template < class > struct is_tuple: std::false_type { };
+    template < class... Ts > struct is_tuple< tuple< Ts... > >: std::true_type { };
+    template < std::size_t, class > struct tuple_element;
+    template < std::size_t idx, class Tuple >
+    using tuple_element_t = typename tuple_element< idx, Tuple >::type;
+
+#ifndef __cpp_pack_indexing
+    template < std::size_t I, class T, class... Ts >
+      requires ( I <= sizeof...( Ts ) )
+    struct tuple_element< I, tuple< T, Ts... > >: tuple_element< I - 1, tuple< Ts... > > { };
+
+    template < class T, class... Ts > struct tuple_element< 0, tuple< T, Ts... > > {
+      using type = T;
+    };
+#else
+    template < std::size_t I, class... Ts > struct tuple_element< I, tuple< Ts... > > {
+      using type = Ts...[ I ];
+    };
+#endif
+    template < class... Ts >
+    auto make_tuple( Ts && ... args )
+        SL_expr_equiv( tuple< Ts... >( std::forward< Ts >( args )... ) )
+
+    template < std::size_t id, satisfy< is_tuple > Tuple >
+    auto get( Tuple && tuple ) SL_expr_equiv( forward_like< Tuple&& >(
+        tuple.tuple_leaf< id, typename tuple_element< id, Tuple >::type >::value ) )
   }
 } // namespace short_lambda::details
 
@@ -355,23 +412,26 @@ export namespace short_lambda {
     } SL_using_st( new_ ){ };
 
     struct delete_t {
+      template < bool Array, class Op > static consteval inline bool constraint_of( ) noexcept {
+        if constexpr ( Array ) {
+          return requires { delete[] std::declval< Op >( ); };
+        } else {
+          return requires { delete std::declval< Op >( ); };
+        }
+      };
+      template < bool Array, class Op > static consteval inline bool noexcept_of( ) noexcept {
+        if constexpr ( Array ) {
+          return noexcept( delete[] std::declval< Op >( ) );
+        } else {
+          return noexcept( delete std::declval< Op >( ) );
+        }
+      };
+
       template < bool Array = false, class Op >
       SL_using_c operator( )( Op&& arg, std::integral_constant< bool, Array > = { } )
-          noexcept( []( ) {
-            if constexpr ( Array ) {
-              return noexcept( delete[] arg );
-            } else {
-              return noexcept( delete arg );
-            }
-          }( ) )
+          noexcept( noexcept_of< Array, Op >( ) )
               ->decltype( auto )
-        requires ( []( ) {
-          if constexpr ( Array ) {
-            return requires { delete[] arg; };
-          } else {
-            return requires { delete arg; };
-          }
-        }( ) )
+        requires ( constraint_of< Array, Op >( ) )
       {
         if constexpr ( Array ) {
           delete[] arg;
@@ -786,45 +846,75 @@ export namespace short_lambda {
     template < std::size_t idx > struct projector_t {
       template < class... Ts >
       constexpr inline static bool construct_from_input
-          = not std::is_lvalue_reference_v< std::tuple_element_t< idx, std::tuple< Ts&&... > > >;
+          = not std::
+                is_lvalue_reference_v< details::tuple_element_t< idx, details::tuple< Ts&&... > > >;
 
 
       template < class... Ts >
         requires ( sizeof...( Ts ) > idx )
-      constexpr static typename std::
-          conditional_t< construct_from_input< Ts... >,
-                         std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
-                         std::tuple_element_t< idx, std::tuple< Ts&&... > > >
+      constexpr static typename std::conditional_t<
+          construct_from_input< Ts... >,
+          std::remove_cvref_t< details::tuple_element_t< idx, details::tuple< Ts... > > >,
+          details::tuple_element_t< idx, details::tuple< Ts... > > >
           operator( )( Ts&&... args ) SL_expr_equiv_no_ret(
-              std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
+              details::get< idx >( details::make_tuple( std::forward< Ts >( args )... ) ) )
     };
 
     struct lift_t { // forwarding construct received argument
+      template < class T > static bool consteval inline constraint_of( ) noexcept {
+        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+          return requires {
+                   ( lambda{
+                       [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
+                           [[maybe_unused]] this Self&& self,
+                           [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
+                         return static_cast< T >( *v );
+                       } } );
+                 };
+        } else {
+          return requires {
+                   ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
+                                 [[maybe_unused]] this Self&& self,
+                                 [[maybe_unused]] Ts&&... args ) noexcept( noexcept( auto{
+                                 std::declval< T& >( ) } ) ) -> auto { return v; } } );
+                 };
+        }
+      }
+      template < class T > static bool consteval inline noexcept_of( ) noexcept {
+        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+          return noexcept(
+              lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
+                          [[maybe_unused]] this Self&& self,
+                          [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
+                return static_cast< T >( *v );
+              } } );
+        } else {
+          return noexcept( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
+                                       [[maybe_unused]] this Self&& self,
+                                       [[maybe_unused]] Ts&&... args ) noexcept( noexcept( auto{
+                                       std::declval< T& >( ) } ) ) -> auto { return v; } } );
+        }
+      }
+
       template < class T >
-      SL_using_c operator( )( T&& value ) SL_expr_equiv_conditional(
-          /*conditional*/ (std::is_lvalue_reference_v< T&& >),
-          /*true branch*/
-          ( lambda{ [ v = std::addressof( value ) ]< class Self, class... Ts >(
-                        [[maybe_unused]] this Self&& self,
-                        [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-            return static_cast< T >( *v );
-          } } ),
-          /*false branch*/
-          ( lambda{ [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
-                        [[maybe_unused]] this Self&& self,
-                        [[maybe_unused]] Ts&&... args ) noexcept( noexcept( auto{
-                        std::declval< T& >( ) } ) ) -> auto { return v; } } ),
-          /*declval true branch*/
-          ( lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
-                        [[maybe_unused]] this Self&& self,
-                        [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-            return static_cast< T >( *v );
-          } } ),
-          /*declval false branch*/
-          ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
-                        [[maybe_unused]] this Self&& self,
-                        [[maybe_unused]] Ts&&... args ) noexcept( noexcept( auto{
-                        std::declval< T& >( ) } ) ) -> auto { return v; } } ) )
+      SL_using_c operator( )( T&& value ) noexcept( noexcept_of< T >( ) )
+          ->decltype( auto )
+        requires ( constraint_of< T >( ) )
+      {
+        /// @note: there's a bug in gcc:
+        /// [[maybe_unused]] does not have effect here.
+        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+          return ( lambda{
+              [ v = std::addressof( value ) ]< class Self, class... Ts >(
+                  [[maybe_unused]] this Self&& self,
+                  Ts&&... ) noexcept -> decltype( auto ) { return static_cast< T >( *v ); } } );
+        } else {
+          return ( lambda{ [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
+                               [[maybe_unused]] this Self&& self,
+                               Ts&&... ) noexcept( noexcept( auto{
+                               std::declval< T& >( ) } ) ) -> auto { return v; } } );
+        }
+      }
     };
 
 
@@ -884,31 +974,34 @@ export namespace short_lambda {
       ///        and gcc. Possibly due to we try to do some complicate lambda capture in a recursive
       ///        context.
       template < class Func >
-      SL_using_c operator( )( Func&& func ) SL_expr_equiv_declval(
-          ( auto{ std::forward< Func >( func ) } ), // only handle copy/move construct capture here,
-                                                    // lambda body is not in immediate context
-                                                    // and since it's a dependent lambda, it's safe
-                                                    // to delay checks
+      SL_using_c operator( )( Func&& func ) SL_expr_equiv_bare(
+          // ( auto{ std::forward< Func >( func ) } ), // only handle copy/move construct capture
+          // here,
+          //                                           // lambda body is not in immediate context
+          //                                           // and since it's a dependent lambda, it's
+          //                                           safe
+          //                                           // to delay checks
           [func{ std::forward< Func >(
               func ) }]< class Self, details::satisfy< is_short_lambda >... Ts >(
               [[maybe_unused]] this Self& self0,
               Ts&&... args0 )
-              SL_expr_equiv_declval(
-                  ( (void) auto{ details::forward_like< Self >( std::declval< Func&& >( ) ) },
-                    ( (void) auto{ std::declval< Ts&& >( ) }, ... ) ), // again, we only check decay
-                                                                       // copy here.
+              SL_expr_equiv_bare(
+                  // ( (void) auto{ details::forward_like< Self >( std::declval< Func&& >( ) ) },
+                  //   ( (void) auto{ std::declval< Ts&& >( ) }, ... ) ), // again, we only check
+                  //   decay
+                  //                                                      // copy here.
                   ::short_lambda::lambda {
                     [
                       func{ details::forward_like< Self >( func ) },
                       ... args0{ std::forward< Ts >( args0 ) }
                     ]< class Self1, class... Ts1 >( [[maybe_unused]] this Self1&& self1,
                                                     Ts1&&... args1 )
-                        SL_expr_equiv_declval(
-                            ( details::forward_like< Self1 >(
-                                details::forward_like< Self >( std::declval< Func&& >( ) ) )(
-                                details::forward_like< Self1 >(
-                                    std::forward< Ts >( std::declval< Ts&& >( ) ) )(
-                                    std::forward< Ts1 >( std::declval< Ts1&& >( ) )... )... ) ),
+                        SL_expr_equiv_bare(
+                            // ( details::forward_like< Self1 >(
+                            //     details::forward_like< Self >( std::declval< Func&& >( ) ) )(
+                            //     details::forward_like< Self1 >(
+                            //         std::forward< Ts >( std::declval< Ts&& >( ) ) )(
+                            //         std::forward< Ts1 >( std::declval< Ts1&& >( ) )... )... ) ),
                             details::forward_like< Self1 >( func )( details::forward_like< Self1 >(
                                 args0 )( std::forward< Ts1 >( args1 )... )... ) )
                   } ) )
