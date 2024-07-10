@@ -1,6 +1,4 @@
 #include <iostream>
-#include <type_traits>
-
 
 import short_lambda;
 
