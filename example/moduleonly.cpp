@@ -4,7 +4,6 @@ import short_lambda;
 
 using namespace short_lambda;
 
-
 int main( ) {
   auto ptr = static_cast< auto ( * )( std::basic_ostream< char >& )->std::basic_ostream< char >& >( std::endl );
 

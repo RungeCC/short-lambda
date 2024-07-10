@@ -14,7 +14,7 @@ module;
 export module short_lambda;
 
 
-namespace short_lambda::details {
+export namespace short_lambda::details {
   template < class T, class U >
   concept similar_to = std::same_as< U, std::remove_cvref_t< T > >;
 
@@ -46,7 +46,7 @@ namespace short_lambda::details {
 
   template < std::size_t id, class T > struct tuple_leaf: tuple_leaf_impl< T > {
     template < class U >
-      requires std::convertible_to< U&&, T >
+      requires std::is_constructible_v< T, U&& >
     constexpr tuple_leaf( U&& u )
         noexcept( noexcept( tuple_leaf_impl< T >{ std::forward< U >( u ) } ) )
       : tuple_leaf_impl< T >{ std::forward< U >( u ) } { }
@@ -57,49 +57,57 @@ namespace short_lambda::details {
   template < std::size_t... Is, class... Ts >
   struct tuple_impl< std::index_sequence< Is... >, Ts... >: tuple_leaf< Is, Ts >... {
     template < class... Us >
-      requires ( sizeof...( Us ) == sizeof...( Ts ) && ( std::convertible_to< Us, Ts > && ... ) )
+      requires ( sizeof...( Us ) == sizeof...( Ts )
+                 && ( std::is_constructible_v< Ts, Us && > && ... ) )
     constexpr tuple_impl( Us&&... us )
         noexcept( noexcept( ( (void) tuple_leaf< Is, Ts >( std::forward< Us >( us ) ), ... ) ) )
       : tuple_leaf< Is, Ts >( std::forward< Us >( us ) )... { }
   };
-  export {
-    template < class... Ts > struct tuple: tuple_impl< std::index_sequence_for< Ts... >, Ts... > {
-      template < class... Us >
-        requires ( sizeof...( Us ) == sizeof...( Ts ) && ( std::convertible_to< Us, Ts > && ... ) )
-      constexpr tuple( Us&&... us ) noexcept( noexcept(
-          tuple_impl< std::index_sequence_for< Ts... >, Ts... >( std::forward< Us >( us )... ) ) )
-        : tuple_impl< std::index_sequence_for< Ts... >, Ts... >( std::forward< Us >( us )... ) { }
-    };
+  template < class... Ts > struct tuple: tuple_impl< std::index_sequence_for< Ts... >, Ts... > {
+    template < class... Us >
+      requires ( sizeof...( Us ) == sizeof...( Ts )
+                 && ( std::is_constructible_v< Ts, Us && > && ... ) )
+    constexpr tuple( Us&&... us ) noexcept( noexcept(
+        tuple_impl< std::index_sequence_for< Ts... >, Ts... >( std::forward< Us >( us )... ) ) )
+      : tuple_impl< std::index_sequence_for< Ts... >, Ts... >( std::forward< Us >( us )... ) { }
+  };
 
-    template < class... Ts > tuple( Ts && ... ) -> tuple< Ts... >;
+  template < class... Ts > tuple( Ts&&... ) -> tuple< Ts... >;
 
-    template < class > struct is_tuple: std::false_type { };
-    template < class... Ts > struct is_tuple< tuple< Ts... > >: std::true_type { };
-    template < std::size_t, class > struct tuple_element;
-    template < std::size_t idx, class Tuple >
-    using tuple_element_t = typename tuple_element< idx, Tuple >::type;
+  template < class > struct is_tuple: std::false_type { };
+  template < class... Ts > struct is_tuple< tuple< Ts... > >: std::true_type { };
+  template < std::size_t, class > struct tuple_element { };
+  template < std::size_t I, class R > struct tuple_element< I, R const > {
+    using type [[maybe_unused]] = std::add_const_t< typename tuple_element< I, R >::type >;
+  };
+  template < std::size_t idx, class Tuple >
+  using tuple_element_t = typename tuple_element< idx, Tuple >::type;
 
-#ifndef __cpp_pack_indexing
-    template < std::size_t I, class T, class... Ts >
-      requires ( I <= sizeof...( Ts ) )
-    struct tuple_element< I, tuple< T, Ts... > >: tuple_element< I - 1, tuple< Ts... > > { };
+#if ! defined( __cpp_pack_indexing )
+  template < std::size_t I, class T, class... Ts >
+    requires ( I <= sizeof...( Ts ) )
+  struct tuple_element< I, tuple< T, Ts... > >: tuple_element< I - 1, tuple< Ts... > > { };
 
-    template < class T, class... Ts > struct tuple_element< 0, tuple< T, Ts... > > {
-      using type = T;
-    };
+  template < class T, class... Ts > struct tuple_element< 0, tuple< T, Ts... > > {
+    using type = T;
+  };
 #else
-    template < std::size_t I, class... Ts > struct tuple_element< I, tuple< Ts... > > {
-      using type = Ts...[ I ];
-    };
+  template < std::size_t I, class... Ts > struct tuple_element< I, tuple< Ts... > > {
+    using type = Ts...[ I ];
+  };
 #endif
-    template < class... Ts >
-    auto make_tuple( Ts && ... args )
-        SL_expr_equiv( tuple< Ts... >( std::forward< Ts >( args )... ) )
+  template < class... Ts >
+  auto make_tuple( Ts&&... args ) SL_expr_equiv( tuple< Ts... >( std::forward< Ts >( args )... ) )
 
-    template < std::size_t id, satisfy< is_tuple > Tuple >
-    auto get( Tuple && tuple ) SL_expr_equiv( forward_like< Tuple&& >(
-        tuple.tuple_leaf< id, typename tuple_element< id, Tuple >::type >::value ) )
-  }
+  template < class... Ts >
+  auto forward_as_tuple( Ts&&... args )
+      SL_expr_equiv( tuple< Ts&&... >( std::forward< Ts >( args )... ) )
+
+  template < std::size_t id, satisfy< is_tuple > Tuple >
+  auto get( Tuple&& tuple ) SL_expr_equiv(
+      static_cast< typename tuple_element< id, std::remove_cvref_t< Tuple > >::type&& >(
+          tuple.tuple_leaf< id, typename tuple_element< id, std::remove_cvref_t< Tuple > >::type >::
+              value ) )
 } // namespace short_lambda::details
 
 

@@ -40,6 +40,7 @@ make_example("moduleonly")
 make_example("forwarding-noexcept")
 make_example("fmap")
 make_example("new-delete")
+make_example("tuple")
 
 target("example.headeronly", {
   kind = "binary",
