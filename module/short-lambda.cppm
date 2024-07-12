@@ -432,7 +432,7 @@ export namespace short_lambda {
           return requires { delete std::declval< Op >( ); };
         }
       };
-      template < bool Array, class Op > consteval inline bool noexcept_of( ) noexcept {
+      template < bool Array, class Op > static consteval inline bool noexcept_of( ) noexcept {
         if constexpr ( Array ) {
           return noexcept( delete[] std::declval< Op >( ) );
         } else {
