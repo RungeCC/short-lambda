@@ -64,7 +64,7 @@ IndentGotoLabels: false
 IndentPPDirectives: AfterHash
 IndentRequiresClause: true # v15
 IndentWidth: 2
-IndentWrappedFunctionNames: true
+IndentWrappedFunctionNames: false
 InsertBraces: true # v15
 InsertNewlineAtEOF: true
 InsertTrailingCommas: Wrapped
@@ -83,7 +83,7 @@ PenaltyBreakAssignment: 5
 PenaltyBreakBeforeFirstCallParameter: 5
 PenaltyBreakComment: 10
 PenaltyBreakOpenParenthesis: 20
-PenaltyBreakScopeResolution: 100 # really shall not break after ::!
+PenaltyBreakScopeResolution: 5000 # really shall not break after ::!
 PenaltyBreakString: 5
 PenaltyBreakTemplateDeclaration: 0
 PenaltyExcessCharacter: 30
@@ -104,7 +104,7 @@ ReferenceAlignment: Left # v13
 RemoveBracesLLVM: false # v14
 RemoveSemicolon: false
 RequiresClausePosition: OwnLine # v15
-RequiresExpressionIndentation: Keyword
+RequiresExpressionIndentation: OuterScope
 SeparateDefinitionBlocks: Leave # v14
 ShortNamespaceLines: 0 # v13
 SortIncludes: CaseSensitive

@@ -15,7 +15,7 @@ export module short_lambda;
 
 
 export namespace short_lambda::details {
-  template < class T, class U >
+  template < class T, class U /*shall have no cvref*/ >
   concept similar_to = std::same_as< U, std::remove_cvref_t< T > >;
 
   template < class T, template < class... > class U, class... Us >
@@ -23,6 +23,9 @@ export namespace short_lambda::details {
 
   template < template < class... > class U, class... Ts >
   concept any_satisfy = ( U< std::remove_cvref_t< Ts > >::value || ... );
+
+  template < template < class... > class U, class... Ts >
+  concept all_satisfy = ( U< std::remove_cvref_t< Ts > >::value && ... );
 
 
   template < class T, class U > [[nodiscard]] constexpr auto&& forward_like( U&& x ) noexcept {
@@ -106,8 +109,8 @@ export namespace short_lambda::details {
   template < std::size_t id, satisfy< is_tuple > Tuple >
   auto get( Tuple&& tuple ) SL_expr_equiv(
       static_cast< typename tuple_element< id, std::remove_cvref_t< Tuple > >::type&& >(
-          tuple.tuple_leaf< id, typename tuple_element< id, std::remove_cvref_t< Tuple > >::type >::
-              value ) )
+          tuple.tuple_leaf< id,
+                            typename tuple_element< id, std::remove_cvref_t< Tuple > >::type >::value ) )
 } // namespace short_lambda::details
 
 
@@ -482,9 +485,9 @@ export namespace short_lambda {
           noexcept( noexcept( lhs ) && noexcept( std::forward< RHS >( rhs ) ) )
               ->decltype( auto )
         requires requires {
-                   lhs;
-                   std::forward< RHS >( rhs );
-                 }
+          lhs;
+          std::forward< RHS >( rhs );
+        }
       {
         lhs;
         return std::forward< RHS >( rhs );
@@ -585,11 +588,7 @@ export namespace short_lambda {
         [ lhs{ std::forward< Lmb >( lmb ) },
           rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >(
             [[maybe_unused]] this Self&& self,
-            Ts&&... args ) noexcept( noexcept( SL_forward_like_app( std::
-                                                                        declval<
-                                                                            Lmb >( ) ) ) && noexcept( SL_forward_like_app( std::
-                                                                                                                               declval<
-                                                                                                                                   RHS >( ) ) ) )
+            Ts&&... args ) noexcept( noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) ) && noexcept( SL_forward_like_app( std::declval< RHS >( ) ) ) )
             -> decltype( auto )
           requires (
               requires { SL_forward_like_app( std::declval< Lmb >( ) ); }
@@ -821,12 +820,12 @@ export namespace short_lambda {
           return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
         } } ) ) -> decltype( auto )
       requires requires {
-                 ::short_lambda::lambda{
-                     [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >( this Self&&,
-                                                                                         Ts&&... ) {
-                       return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
-                     } };
-               }
+        ::short_lambda::lambda{
+            [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >( this Self&&,
+                                                                                Ts&&... ) {
+              return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
+            } };
+      }
     {
       return ::short_lambda::lambda {
         [... args1{ std::forward< Args >(
@@ -859,8 +858,7 @@ export namespace short_lambda {
     template < std::size_t idx > struct projector_t {
       template < class... Ts >
       constexpr inline static bool construct_from_input
-          = not std::
-                is_lvalue_reference_v< details::tuple_element_t< idx, details::tuple< Ts&&... > > >;
+          = not std::is_lvalue_reference_v< details::tuple_element_t< idx, details::tuple< Ts&&... > > >;
 
 
       template < class... Ts >
@@ -869,28 +867,27 @@ export namespace short_lambda {
           construct_from_input< Ts... >,
           std::remove_cvref_t< details::tuple_element_t< idx, details::tuple< Ts... > > >,
           details::tuple_element_t< idx, details::tuple< Ts... > > >
-          operator( )( Ts&&... args ) SL_expr_equiv_no_ret(
-              details::get< idx >( details::make_tuple( std::forward< Ts >( args )... ) ) )
+      operator( )( Ts&&... args ) SL_expr_equiv_no_ret(
+          details::get< idx >( details::make_tuple( std::forward< Ts >( args )... ) ) )
     };
 
     struct lift_t { // forwarding construct received argument
       template < class T > static bool consteval inline constraint_of( ) noexcept {
         if constexpr ( std::is_lvalue_reference_v< T&& > ) {
           return requires {
-                   ( lambda{
-                       [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
-                           [[maybe_unused]] this Self&& self,
-                           [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-                         return static_cast< T >( *v );
-                       } } );
-                 };
+            ( lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
+                          [[maybe_unused]] this Self&& self,
+                          [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
+              return static_cast< T >( *v );
+            } } );
+          };
         } else {
           return requires {
-                   ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
-                                 [[maybe_unused]] this Self&& self,
-                                 [[maybe_unused]] Ts&&... args ) noexcept( noexcept( auto{
-                                 std::declval< T& >( ) } ) ) -> auto { return v; } } );
-                 };
+            ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
+                          [[maybe_unused]] this Self&& self,
+                          [[maybe_unused]] Ts&&... args ) noexcept( noexcept( auto{
+                          std::declval< T& >( ) } ) ) -> auto { return v; } } );
+          };
         }
       }
       template < class T > static bool consteval inline noexcept_of( ) noexcept {
@@ -996,25 +993,26 @@ export namespace short_lambda {
               func ) }]< class Self, details::satisfy< is_short_lambda >... Ts >(
               [[maybe_unused]] this Self& self0,
               [[maybe_unused]] Ts&&... args0 )
-              SL_expr_equiv_declval(
-                  ( (void) auto{ details::forward_like< Self >( std::declval< Func&& >( ) ) },
-                    ( (void) auto{ std::declval< Ts&& >( ) }, ... ) ), // again, we only check decay
-                                                                       // copy here.
-                  ::short_lambda::lambda {
-                    [
-                      func{ details::forward_like< Self >( func ) },
-                      ... args0{ std::forward< Ts >( args0 ) }
-                    ]< class Self1, class... Ts1 >( [[maybe_unused]] this Self1&& self1,
-                                                    Ts1&&... args1 )
-                        SL_expr_equiv_declval(
-                            ( details::forward_like< Self1 >(
-                                details::forward_like< Self >( std::declval< Func&& >( ) ) )(
-                                details::forward_like< Self1 >(
-                                    std::forward< Ts >( std::declval< Ts&& >( ) ) )(
-                                    std::forward< Ts1 >( std::declval< Ts1&& >( ) )... )... ) ),
-                            details::forward_like< Self1 >( func )( details::forward_like< Self1 >(
-                                args0 )( std::forward< Ts1 >( args1 )... )... ) )
-                  } ) )
+          // FIXME: this spec seems wrong since we also need to
+          // check whether we could constructor lambda<(lambda)>
+          SL_expr_equiv_declval(
+              /// NOTE: again, we only check decay copy here.
+              ( (void) auto{ details::forward_like< Self >( std::declval< Func&& >( ) ) },
+                ( (void) auto{ std::declval< Ts&& >( ) }, ... ) ),
+              ::short_lambda::lambda {
+                [
+                  func{ details::forward_like< Self >( func ) },
+                  ... args0{ std::forward< Ts >( args0 ) }
+                ]< class Self1, class... Ts1 >( [[maybe_unused]] this Self1&& self1, Ts1&&... args1 )
+                    SL_expr_equiv_declval(
+                        ( details::forward_like< Self1 >(
+                            details::forward_like< Self >( std::declval< Func&& >( ) ) )(
+                            details::forward_like< Self1 >(
+                                std::forward< Ts >( std::declval< Ts&& >( ) ) )(
+                                std::forward< Ts1 >( std::declval< Ts1&& >( ) )... )... ) ),
+                        details::forward_like< Self1 >( func )( details::forward_like< Self1 >(
+                            args0 )( std::forward< Ts1 >( args1 )... )... ) )
+              } ) )
     };
     template <> struct pure_t< lambda >: lift_t {
       // pure<lambda> :: a -> lambda<a>
@@ -1027,11 +1025,12 @@ export namespace short_lambda {
         return
             [... as{ std::forward< Ts1 >(
                 as ) } ]< class Self, class Func >( [[maybe_unused]] this Self&& self, Func&& func )
-                SL_expr_equiv_spec( (void) auto{ details::forward_like< Self >(
-                                        std::declval< Func >( ) ) },
-                                    ( (void) auto{ details::forward_like< Self >(
-                                          std::declval< Ts1&& >( ) ) },
-                                      ... ) ) {
+                SL_expr_equiv_spec(
+                    // FIXME: this spec seems wrong since we also need to
+                    // check whether we could constructor lambda<(lambda)>
+                    (void) auto{ details::forward_like< Self >( std::declval< Func >( ) ) },
+                    ( (void) auto{ details::forward_like< Self >( std::declval< Ts1&& >( ) ) },
+                      ... ) ) {
                   return lambda {
                     [
                       func{ details::forward_like< Self >( func ) },

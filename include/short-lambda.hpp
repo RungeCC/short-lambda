@@ -85,8 +85,7 @@ static_assert( false, "unsupported compiler" );
 #define SL_expr_equiv_conditional( cond, b1, b2, b1dv, b2dv )                                      \
   SL_noexcept_equiv_conditional( cond, b1dv, b2dv )                                                \
       ->decltype( auto )                                                                           \
-          SL_SFINAE_equiv_conditional( cond, b1dv, b2dv )                                          \
-              SL_body_equiv_conditional( cond, b1, b2 )
+      SL_SFINAE_equiv_conditional( cond, b1dv, b2dv ) SL_body_equiv_conditional( cond, b1, b2 )
 
 namespace short_lambda::details {
   template < class T, class U >
@@ -480,9 +479,9 @@ namespace short_lambda {
           noexcept( noexcept( lhs ) && noexcept( std::forward< RHS >( rhs ) ) )
               ->decltype( auto )
         requires requires {
-                   lhs;
-                   std::forward< RHS >( rhs );
-                 }
+          lhs;
+          std::forward< RHS >( rhs );
+        }
       {
         lhs;
         return std::forward< RHS >( rhs );
@@ -820,12 +819,12 @@ namespace short_lambda {
           return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
         } } ) ) -> decltype( auto )
       requires requires {
-                 ::short_lambda::lambda{
-                     [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >( this Self&&,
-                                                                                         Ts&&... ) {
-                       return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
-                     } };
-               }
+        ::short_lambda::lambda{
+            [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >( this Self&&,
+                                                                                Ts&&... ) {
+              return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
+            } };
+      }
     {
       return ::short_lambda::lambda {
         [... args1{ std::forward< Args >(
@@ -895,7 +894,7 @@ namespace short_lambda {
           /*false branch declval*/
           ( lambda{ [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
                         [[maybe_unused]] this Self&& self,
-                        [[maybe_unused]] Ts&&...  ) noexcept( noexcept( auto{
+                        [[maybe_unused]] Ts&&... ) noexcept( noexcept( auto{
                         std::declval< T& >( ) } ) ) -> auto { return v; } } ) )
     };
 

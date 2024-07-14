@@ -22,7 +22,7 @@ int main( ) {
   int const a  = 44; // ref
   int       b  = 21; // for rvalue
   int&&     c  = 3;
-  auto      tp = details::forward_as_tuple( a, std::move( b ), static_cast<int const&&>(c), 1 );
+  auto      tp = details::forward_as_tuple( a, b, static_cast<int const&&>(c), 1 );
   foo( details::get< 0 >( tp ) );
   foo( details::get< 1 >( tp ) );
   foo( details::get< 2 >( tp ) );
