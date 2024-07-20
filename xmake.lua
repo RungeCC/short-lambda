@@ -19,6 +19,8 @@ do
   add_includedirs("include", { interface = true })
   add_headerfiles("include/(*.hpp)")
 end
+target_end()
+
 
 target("short-lambda.module")
 do
@@ -27,6 +29,7 @@ do
   add_headerfiles("module/*.hpp")
   set_policy("build.c++.modules", true)
 end
+target_end()
 
 function make_example(name)
   target("example." .. name) do 
@@ -34,6 +37,7 @@ function make_example(name)
     add_deps("short-lambda.module")
     add_files("example/" .. name .. ".cpp")
   end
+  target_end()
 end
 
 make_example("moduleonly")
