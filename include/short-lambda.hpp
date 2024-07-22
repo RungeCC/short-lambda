@@ -295,7 +295,6 @@ namespace short_lambda {
 
 
     // some un-overloadable operator
-      f
     struct pointer_member_access_t { // a.*b
       template < class LHS, class RHS >
       SL_using_c operator( )( LHS&& lhs, RHS&& rhs )
@@ -558,7 +557,6 @@ namespace short_lambda {
     SL_lambda_unary_operator( positate, ( +) )
     SL_lambda_unary_operator( bit_not, ( ~) )
     SL_lambda_unary_operator( logical_not, ( ! ) )
-    SL_lambda_unary_operator( address_of, (&) )
 
 #undef SL_lambda_unary_operator
 
@@ -708,6 +706,16 @@ namespace short_lambda {
                                             std::integral_constant< bool, Id >{ } ) ),
               function_object::decltype_( SL_forward_like_app( lhs ),
                                           std::integral_constant< bool, Id >{ } ) )
+    } );
+    /// @note: msvc crashed with overloading operator& globally, so we overload it as member
+    /// function
+    template < class Lmb >
+    SL_using_m operator&( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
+      [lmb{ std::forward< Lmb >(
+          lmb ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&... args )
+          SL_expr_equiv_declval(
+              ( function_object::address_of( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
+              function_object::address_of( SL_forward_like_app( lmb ) ) )
     } );
 
     template < class Lmb >
