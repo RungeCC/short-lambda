@@ -51,7 +51,7 @@ static_assert( false, "unsupported compiler" );
 
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
 #if not defined( __cpp_static_call_operator )
-/// @note: msvc currently do not support `static operator()`, so we need a feature test macro here
+/// @note: msvc currently does not support `static operator()`, so we need a feature test macro here
 #  define SL_using_c [[maybe_unused]] constexpr inline auto
 #else
 #  define SL_using_c [[maybe_unused]] static constexpr inline auto
@@ -294,8 +294,8 @@ namespace short_lambda {
     } SL_using_st( object_member_access_of_pointer ){ };
 
 
-    // some unoverloadable operator
-
+    // some un-overloadable operator
+      f
     struct pointer_member_access_t { // a.*b
       template < class LHS, class RHS >
       SL_using_c operator( )( LHS&& lhs, RHS&& rhs )
