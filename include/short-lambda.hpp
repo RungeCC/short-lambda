@@ -845,7 +845,7 @@ namespace short_lambda {
                                                           SL_forward_like_app( mptr ) ) )
         } );
 
-    /// @note: for multiple lambda argument, we only consider the friend new_ template of the first
+    /// @note: for multiple lambda arguments, we only consider the friend new_ template of the first
     /// one.
     template < class T,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ > >... Args >
