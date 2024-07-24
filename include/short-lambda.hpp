@@ -112,6 +112,19 @@ namespace short_lambda::details {
   template < template < class... > class U, class... Ts >
   concept any_satisfy = ( U< std::remove_cvref_t< Ts > >::value || ... );
 
+  template < template < class > class U, class... Ts > struct is_first_satisfy: std::false_type { };
+
+  template < template < class > class U, class A, class... Ts >
+  struct is_first_satisfy< U, A, Ts... >: std::integral_constant< bool, U< A >::value > { };
+
+  template < template < class > class U, class... Ts >
+  concept first_satisfy = is_first_satisfy< U, Ts... >::value;
+
+  template < template < class... > class U, class... Ts > struct lpartial {
+    template < class... Us >
+    struct type: std::integral_constant< bool, U< Ts..., Us... >::value > { };
+  };
+
 
   template < class T, class U > [[nodiscard]] constexpr auto&& forward_like( U&& x ) noexcept {
     constexpr bool is_adding_const = std::is_const_v< std::remove_reference_t< T > >;
@@ -832,40 +845,37 @@ namespace short_lambda {
                                                           SL_forward_like_app( mptr ) ) )
         } );
 
-    // template < class T,
-    //            details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ >
-    //            >... Args >
-    // SL_using_f new_( std::type_identity< T >, Args&&... args1 ) noexcept( noexcept(
-    //     ::short_lambda::lambda{ [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts
-    //     >(
-    //                                 /// @note: there's a bug in clang:
-    //                                 /// https://github.com/llvm/llvm-project/issues/98258,
-    //                                 /// [[maybe_unused]] does not have effect here.
-    //                                 [[maybe_unused]] this Self&&,
-    //                                 [[maybe_unused]] Ts&&... ) {
-    //       return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
-    //     } } ) ) -> decltype( auto )
-    //   requires requires {
-    //     ::short_lambda::lambda{
-    //         [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >( this Self&&,
-    //                                                                             Ts&&... ) {
-    //           return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
-    //         } };
-    //   }
-    // {
-    //   return ::short_lambda::lambda {
-    //     [... args1{ std::forward< Args >(
-    //         args1 ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&...
-    //         args ) SL_expr_equiv_declval(
-    //             ( function_object::new_( std::type_identity< T >{ },
-    //                                      SL_forward_like_app( std::declval< Args >( ) )... ) ),
-    //             function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( args1
-    //             )... ) )
-    //   };
-    // }
+    /// @note: for multiple lambda argument, we only consider the friend new_ template of the first
+    /// one.
+    template < class T,
+               details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ > >... Args >
+    SL_using_f new_( std::type_identity< T >, Args&&... args1 ) noexcept( noexcept(
+        ::short_lambda::lambda{ [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >(
+                                    /// @note: there's a bug in clang:
+                                    /// https://github.com/llvm/llvm-project/issues/98258,
+                                    /// [[maybe_unused]] does not have effect here.
+                                    [[maybe_unused]] this Self&&,
+                                    [[maybe_unused]] Ts&&... ) {
+          return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
+        } } ) ) -> decltype( auto )
+      requires ( requires {
+        ( (void) SL_decay_copy( args1 ), ... );
+        requires ( details::first_satisfy< details::lpartial< std::is_same, self_t >::type,
+                                           std::remove_cvref_t< Args >... > );
+      } )
+    {
+      return ::short_lambda::lambda {
+        [... args1{ std::forward< Args >(
+            args1 ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&... args )
+            SL_expr_equiv_declval(
+                ( function_object::new_( std::type_identity< T >{ },
+                                         SL_forward_like_app( std::declval< Args >( ) )... ) ),
+                function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( args1 )... ) )
+      };
+    }
 
     template < bool Array = false, class Lmb >
-    SL_using_m delete_( this Lmb&& lmb )
+    SL_using_m delete_( this Lmb&& lmb, std::integral_constant< bool, Array > = { } )
         noexcept( noexcept( SL_decay_copy( std::declval< Lmb >( ) ) ) ) -> decltype( auto )
       requires requires { SL_decay_copy( std::declval< Lmb >( ) ); }
     {

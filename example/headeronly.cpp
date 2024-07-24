@@ -4,6 +4,10 @@
 
 using namespace short_lambda;
 
+struct V {
+  int x, y;
+};
+
 
 int main( ) {
   auto ptr = static_cast< auto ( * )( std::basic_ostream< char >& )->std::basic_ostream< char >& >(
@@ -27,4 +31,9 @@ int main( ) {
             << std::endl;
   std::cout << std::boolalpha << ( ( my_not( $0 ) ).noexcept_( )( has_not_noexcept_not{ } ) )
             << std::endl;
+
+  auto v = ( new_( std::type_identity< V >{ }, $0, $1 )
+                 .delete_( std::integral_constant< bool, false >{ } )
+                 .then( $0 ) )( 1, 2 );
+  std::cout << v << std::endl;
 }
