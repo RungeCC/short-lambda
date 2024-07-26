@@ -112,17 +112,21 @@ namespace short_lambda::details {
   template < template < class... > class U, class... Ts >
   concept any_satisfy = ( U< std::remove_cvref_t< Ts > >::value || ... );
 
-  template < template < class > class U, class... Ts > struct is_first_satisfy: std::false_type { };
+  template < template < class... > class U, class... Ts >
+  struct is_first_satisfy: std::false_type { };
 
-  template < template < class > class U, class A, class... Ts >
+  template < template < class... > class U, class A, class... Ts >
   struct is_first_satisfy< U, A, Ts... >: std::integral_constant< bool, U< A >::value > { };
 
-  template < template < class > class U, class... Ts >
+  template < template < class... > class U, class... Ts >
   concept first_satisfy = is_first_satisfy< U, Ts... >::value;
 
+  template < class... > struct is_same: std::false_type { };
+
+  template < class A, class... Ts > struct is_same< A, A, Ts... >: std::true_type { };
+
   template < template < class... > class U, class... Ts > struct lpartial {
-    template < class... Us >
-    struct type: std::integral_constant< bool, U< Ts..., Us... >::value > { };
+    template < class... Us > using type = U< Ts..., Us... >;
   };
 
 
@@ -856,11 +860,13 @@ namespace short_lambda {
                                     /// [[maybe_unused]] does not have effect here.
                                     [[maybe_unused]] this Self&&,
                                     [[maybe_unused]] Ts&&... ) {
-          return ( std::forward< Args >( args1 )( std::declval< Ts >( )... ), ... );
+          return function_object::new_(
+              std::type_identity< T >{ },
+              std::forward< Args >( args1 )( std::declval< Ts >( )... )... );
         } } ) ) -> decltype( auto )
       requires ( requires {
         ( (void) SL_decay_copy( args1 ), ... );
-        requires ( details::first_satisfy< details::lpartial< std::is_same, self_t >::type,
+        requires ( details::first_satisfy< details::lpartial< details::is_same, self_t >::template type,
                                            std::remove_cvref_t< Args >... > );
       } )
     {

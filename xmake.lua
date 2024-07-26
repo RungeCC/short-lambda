@@ -13,12 +13,11 @@ on_config(function(target)
         target:add("cxflags", "/Zc:__cplusplus")
     else
         if target:has_tool("cxx", "clang", "gcc") then
-            target:set("languages", "c++26")
+            target:add("cxflags", "-std=c++26")
         else
             assert(false)
         end
     end
-    target:add("cxflags", "clang::-Wno-expreimental-header-units")
     target:add("cxflags", "clang::-Wno-experimental-header-units")
     target:add("cxflags", "clang::-Wno-c++20-compat")
     target:add("cxflags", "clang::-xc++")
