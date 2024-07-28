@@ -8,7 +8,6 @@ struct V {
   int x, y;
 };
 
-
 int main( ) {
   auto ptr = static_cast< auto ( * )( std::basic_ostream< char >& )->std::basic_ostream< char >& >(
       std::endl );

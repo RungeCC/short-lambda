@@ -129,7 +129,6 @@ namespace short_lambda::details {
     template < class... Us > using type = U< Ts..., Us... >;
   };
 
-
   template < class T, class U > [[nodiscard]] constexpr auto&& forward_like( U&& x ) noexcept {
     constexpr bool is_adding_const = std::is_const_v< std::remove_reference_t< T > >;
     if constexpr ( std::is_lvalue_reference_v< T&& > ) {
