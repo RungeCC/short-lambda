@@ -19,13 +19,11 @@ static_assert( false, "unsupported compiler" );
 #  define SL_anal_clangd
 #endif
 
-#include <cstddef>
-#include <functional>
-#include <memory>
-#include <tuple>
-#include <type_traits>
-#include <typeindex>
-#include <utility>
+#include <memory> // for std::addressof
+#include <tuple>  // for std::tuple, std::tuple_size, std::tuple_element, std::get(std::tuple)
+#include <type_traits> // for type_traits, std::integral_constant, std::bool_constant, std::true_type, std::false_type
+#include <typeindex> // for std::type_index, typeid
+#include <utility> // for std::forward, std::move, std::as_const, std::declval, std::integer_sequence, std::make_integer_sequence , std::index_sequence_for
 
 #define SL_expr_equiv_bare( ... )                                                                  \
   { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
@@ -105,8 +103,10 @@ static_assert( false, "unsupported compiler" );
       SL_SFINAE_equiv_conditional( cond, b1dv, b2dv ) SL_body_equiv_conditional( cond, b1, b2 )
 
 namespace short_lambda::details {
-  template < class T, class U >
-  concept similar_to = std::same_as< U, std::remove_cvref_t< T > >;
+  using size_t = decltype( sizeof( 0 ) );
+
+  template < class T, class U, class... >
+  concept uncvref_same_as = std::same_as< std::remove_cvref_t< U >, std::remove_cvref_t< T > >;
 
   template < class T, template < class... > class U, class... Us >
   concept satisfy = U< std::remove_cvref_t< T >, Us... >::value;
@@ -118,7 +118,7 @@ namespace short_lambda::details {
   struct is_first_satisfy: std::false_type { };
 
   template < template < class... > class U, class A, class... Ts >
-  struct is_first_satisfy< U, A, Ts... >: std::integral_constant< bool, U< A >::value > { };
+  struct is_first_satisfy< U, A, Ts... >: std::bool_constant< U< A >::value > { };
 
   template < template < class... > class U, class... Ts >
   concept first_satisfy = is_first_satisfy< U, Ts... >::value;
@@ -488,7 +488,7 @@ namespace short_lambda {
 
     struct decltype_t {
       template < class Op, bool id = false >
-      SL_using_paren( Op&& arg, std::integral_constant< bool, id > = { } ) noexcept
+      SL_using_paren( Op&& arg, std::bool_constant< id > = { } ) noexcept
         requires ( ( id && requires { std::type_identity< decltype( arg ) >{ }; } )
                    || ( requires { std::type_identity< decltype( ( arg ) ) >{ }; } ) )
       {
@@ -535,7 +535,7 @@ namespace short_lambda {
 
     struct delete_t {
       template < bool Array = false, class Op >
-      SL_using_paren( Op&& arg, std::integral_constant< bool, Array > = { } ) noexcept( []( ) {
+      SL_using_paren( Op&& arg, std::bool_constant< Array > = { } ) noexcept( []( ) {
         if constexpr ( Array ) {
           return noexcept( delete[] arg );
         } else {
@@ -664,7 +664,7 @@ namespace short_lambda {
     using type   = CallableT;
     using self_t = lambda< CallableT >;
 
-    template < details::similar_to< lambda > Self, class... Ts >
+    template < details::uncvref_same_as< lambda > Self, class... Ts >
     SL_using_m operator( )( [[maybe_unused]] this Self&& self, Ts&&... args ) SL_expr_equiv(
         details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
 
@@ -764,7 +764,7 @@ namespace short_lambda {
 
     template < bool Id = false, class Lmb >
     SL_using_m decltype_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda{ details::demux(
-        details::bind_back( function_object::decltype_, std::integral_constant< bool, Id >{ } ),
+        details::bind_back( function_object::decltype_, std::bool_constant< Id >{ } ),
         std::forward< Lmb >( lmb ) ) } );
 
     template < class Lmb >
@@ -825,14 +825,14 @@ namespace short_lambda {
                         std::forward< Args >( args1 )... ) } )
 
     template < bool Array = false, class Lmb >
-    SL_using_m delete_( this Lmb&& lmb, std::integral_constant< bool, Array > = { } )
+    SL_using_m delete_( this Lmb&& lmb, std::bool_constant< Array > = { } )
         SL_expr_equiv( ::short_lambda::lambda{ details::demux(
-            details::bind_back( function_object::delete_, std::integral_constant< bool, Array >{ } ),
+            details::bind_back( function_object::delete_, std::bool_constant< Array >{ } ),
             std::forward< Lmb >( lmb ) ) } )
   };
 
   inline namespace factory {
-    template < std::size_t idx > struct projector_t {
+    template < details::size_t idx > struct projector_t {
       template < class... Ts >
       constexpr inline static bool construct_from_input
           = not std::is_lvalue_reference_v< std::tuple_element_t< idx, std::tuple< Ts&&... > > >;
@@ -982,16 +982,16 @@ namespace short_lambda {
           SL_expr_equiv( details::forward_like< Self >( self.value ) )
     };
 
-    template < details::satisfy< std::is_default_constructible > T, std::size_t id = 0 >
+    template < details::satisfy< std::is_default_constructible > T, details::size_t id = 0 >
     inline storage_t< T > storage{ };
 
-    template < auto value, std::size_t id = 0 >
+    template < auto value, details::size_t id = 0 >
     SL_using_m constant = storage_t< std::remove_cvref_t< decltype( value ) > const >{ value };
 
-    template < class U, std::size_t id = 0 >
+    template < class U, details::size_t id = 0 >
     SL_using_m $_ = coprojector_t< U >{ }( storage< U, id > );
 
-    template < auto value, std::size_t id = 0 >
+    template < auto value, details::size_t id = 0 >
     SL_using_m $c
         = coprojector_t< std::remove_reference_t< decltype( value ) > >{ }( constant< value, id > );
 
