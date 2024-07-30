@@ -69,6 +69,8 @@ static_assert( false, "unsupported compiler" );
 #endif
 
 #if not defined( __cpp_auto_cast )
+/// @note: we use list-initialization but not non-list-direct-initialization to avoid some unwanted
+/// conversions
 #  define SL_decay_copy( ... )                                                                     \
     std::decay_t< decltype( ( __VA_ARGS__ ) ) > { __VA_ARGS__ }
 #else

@@ -28,6 +28,33 @@ add_rules("set-flags")
 
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
+if has_config("enable_module") then
+    target("short-lambda.module")
+    do
+        set_kind("moduleonly")
+        add_files("module/short-lambda.cppm", {public = true})
+        add_headerfiles("module/*.hpp")
+        set_policy("build.c++.modules", true)
+    end
+    target_end()
+
+    function make_example(name)
+        target("example." .. name)
+        do
+            set_kind("binary")
+            add_deps("short-lambda.module")
+            add_files("example/" .. name .. ".cpp")
+        end
+        target_end()
+    end
+
+    make_example("moduleonly")
+    make_example("forwarding-noexcept")
+    make_example("fmap")
+    make_example("new-delete")
+    make_example("tuple")
+end
+
 target("short-lambda.header")
 do
     set_kind("headeronly")
@@ -36,33 +63,10 @@ do
 end
 target_end()
 
-target("short-lambda.module")
+target("example.headeronly")
 do
-    set_kind("moduleonly")
-    add_files("module/short-lambda.cppm", {public = true})
-    add_headerfiles("module/*.hpp")
-    set_policy("build.c++.modules", true)
+    set_kind("binary")
+    add_deps("short-lambda.header")
+    add_files("example/headeronly.cpp")
 end
 target_end()
-
-function make_example(name)
-    target("example." .. name)
-    do
-        set_kind("binary")
-        add_deps("short-lambda.module")
-        add_files("example/" .. name .. ".cpp")
-    end
-    target_end()
-end
-
-make_example("moduleonly")
-make_example("forwarding-noexcept")
-make_example("fmap")
-make_example("new-delete")
-make_example("tuple")
-
-target("example.headeronly", {
-    kind = "binary",
-    deps = "short-lambda.header",
-    files = "example/headeronly.cpp"
-})
