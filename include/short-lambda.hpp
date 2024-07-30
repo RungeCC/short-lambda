@@ -1,6 +1,5 @@
 #pragma once
 
-
 #if defined( _MSC_VER )
 #  define SL_cxx_msvc
 #elif defined( __clang__ )
@@ -77,35 +76,9 @@ static_assert( false, "unsupported compiler" );
 #  define SL_decay_copy( ... )                                                                     \
     auto { __VA_ARGS__ }
 #endif
-#define SL_noexcept_equiv_conditional( cond, b1, b2 )                                              \
-  noexcept( []( ) constexpr {                                                                      \
-    if constexpr ( cond )                                                                          \
-      return noexcept( b1 );                                                                       \
-    else                                                                                           \
-      return noexcept( b2 );                                                                       \
-  }( ) )
-#define SL_SFINAE_equiv_conditional( cond, b1, b2 )                                                \
-  requires ( []( ) constexpr {                                                                     \
-    if constexpr ( cond )                                                                          \
-      return requires { b1; };                                                                     \
-    else                                                                                           \
-      return requires { b2; };                                                                     \
-  }( ) )
-#define SL_body_equiv_conditional( cond, b1, b2 )                                                  \
-  {                                                                                                \
-    if constexpr ( cond ) {                                                                        \
-      return ( b1 );                                                                               \
-    } else {                                                                                       \
-      return ( b2 );                                                                               \
-    }                                                                                              \
-  }
-#define SL_expr_equiv_conditional( cond, b1, b2, b1dv, b2dv )                                      \
-  SL_noexcept_equiv_conditional( cond, b1dv, b2dv )                                                \
-      ->decltype( auto )                                                                           \
-      SL_SFINAE_equiv_conditional( cond, b1dv, b2dv ) SL_body_equiv_conditional( cond, b1, b2 )
 
 namespace short_lambda::details {
-  using size_t = decltype( sizeof( 0 ) );
+  using size_t = decltype( sizeof( 0 ) ); // avoid including cstddef header file
 
   template < class T, class U, class... >
   concept uncvref_same_as = std::same_as< std::remove_cvref_t< U >, std::remove_cvref_t< T > >;
@@ -920,41 +893,6 @@ namespace short_lambda {
         }
       }
     };
-    /// @note: it seems msvc has a bug when determining odr-use, so we need to seperate
-    /// constraint_of and noexcept_of calculation, also, gcc rejects this when in a module.
-    // struct lift_t { // forwarding construct received argument
-    //   template < class T >
-    //   SL_using_paren( T&& value )
-    //   SL_expr_equiv_conditional(
-    //       /*conditional*/ (std::is_lvalue_reference_v< T&& >),
-    //       /*true branch*/
-    //       ( lambda{ [ v = std::addressof( value ) ]< class Self, class... Ts >(
-    //                     [[maybe_unused]] this Self&& self,
-    //                     [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-    //         return static_cast< T >( *v );
-    //       } } ),
-    //       /*false branch*/
-    //       ( lambda{
-    //           [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
-    //               [[maybe_unused]] this Self&& self,
-    //               [[maybe_unused]] Ts&&... args ) noexcept( noexcept( SL_decay_copy(
-    //               std::declval< T& >( ) ) ) )
-    //               -> auto { return v; } } ),
-    //       /*true branch declval*/
-    //       ( lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
-    //                     [[maybe_unused]] this Self&& self,
-    //                     [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-    //         return static_cast< T >( *v );
-    //       } } ),
-    //       /*false branch declval*/
-    //       ( lambda{
-    //           [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
-    //               [[maybe_unused]] this Self&& self,
-    //               [[maybe_unused]] Ts&&... ) noexcept( noexcept( SL_decay_copy( std::declval< T&
-    //               >( ) ) ) )
-    //               -> auto { return v; } } ) )
-    // };
-
 
     SL_using_v $0 = lambda{ projector_t< 0 >{} };
     SL_using_v $1 = lambda{ projector_t< 1 >{} };
