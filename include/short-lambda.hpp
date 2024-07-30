@@ -20,12 +20,12 @@ static_assert( false, "unsupported compiler" );
 #endif
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <tuple>
 #include <type_traits>
 #include <typeindex>
 #include <utility>
-#include <functional>
 
 #define SL_expr_equiv_bare( ... )                                                                  \
   { return ( __VA_ARGS__ ); } // extra parenthesis for decltype(auto)
@@ -160,10 +160,10 @@ namespace short_lambda::details {
                ... slots{ std::forward< Slots >(
                    slots ) } ]< class Self, class... Args >( this Self&&, Args&&... args )
                  SL_expr_equiv_spec( forward_like< Self >( std::declval< Fn >( ) )(
-                     forward_like< Self >( std::declval< Slots >( ) )(
+                     details::forward_like< Self >( std::declval< Slots >( ) )(
                          std::forward< Args >( args )... )... ) ) {
-                   return forward_like< Self >( fn )(
-                       forward_like< Self >( slots )( std::forward< Args >( args )... )... );
+                   return details::forward_like< Self >( fn )( details::forward_like< Self >(
+                       slots )( std::forward< Args >( args )... )... );
                  };
     }
   } SL_using_st( demux ){ };
@@ -182,10 +182,11 @@ namespace short_lambda::details {
                ... binds{ std::forward< Binds >(
                    binds ) } ]< class Self, class... Args >( this Self&&, Args&&... args )
                  SL_expr_equiv_spec( forward_like< Self >( std::declval< Fn >( ) )(
-                     forward_like< Self >( std::declval< Binds >( ) )...,
+                     details::forward_like< Self >( std::declval< Binds >( ) )...,
                      std::forward< Args >( args )... ) ) {
-                   return forward_like< Self >( fn )( forward_like< Self >( binds )...,
-                                                      std::forward< Args >( args )... );
+                   return details::forward_like< Self >( fn )(
+                       details::forward_like< Self >( binds )...,
+                       std::forward< Args >( args )... );
                  };
     }
   } SL_using_st( bind_front ){ };
@@ -203,11 +204,12 @@ namespace short_lambda::details {
       return [ fn{ std::forward< Fn >( fn ) },
                ... binds{ std::forward< Binds >(
                    binds ) } ]< class Self, class... Args >( this Self&&, Args&&... args )
-                 SL_expr_equiv_spec( forward_like< Self >( std::declval< Fn >( ) )(
+                 SL_expr_equiv_spec( details::forward_like< Self >( std::declval< Fn >( ) )(
                      std::forward< Args >( args )...,
-                     forward_like< Self >( std::declval< Binds >( ) )... ) ) {
-                   return forward_like< Self >( fn )( std::forward< Args >( args )...,
-                                                      forward_like< Self >( binds )... );
+                     details::forward_like< Self >( std::declval< Binds >( ) )... ) ) {
+                   return details::forward_like< Self >( fn )(
+                       std::forward< Args >( args )...,
+                       details::forward_like< Self >( binds )... );
                  };
     }
   } SL_using_st( bind_back ){ };
@@ -285,7 +287,7 @@ namespace short_lambda {
     delete_,        // TBD
     co_await_ = 59, // ^ special, v extra, provide by me
     then      = 60, // expression-equivalent to `(void)lhs, rhs`
-    typeof_,        // typeof_(x) := decltype((x)), they are c23 keyword, so we add a _ suffix
+    typeof_,        // typeof_(x) := decltype((x)), they are c23 keywords, so we add a _ suffix
     typeof_unqual_  // typeof_unqual_(x) := std::remove_cvref_t<decltype((x))>
   };
 
@@ -732,15 +734,10 @@ namespace short_lambda {
 
 #define SL_lambda_member_cast_op_named( name )                                                     \
   template < class Target, class Lmb >                                                             \
-  SL_using_m name( this Lmb&& lmb,                                                                 \
-                   std::type_identity< Target > = { } ) SL_expr_equiv( ::short_lambda::lambda {    \
-    [lhs{ std::forward< Lmb >(                                                                     \
-        lmb ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&... args )     \
-        SL_expr_equiv_declval(                                                                     \
-            ( function_object::name( SL_forward_like_app( std::declval< Lmb >( ) ),                \
-                                     std::type_identity< Target >{ } ) ),                          \
-            function_object::name( SL_forward_like_app( lhs ), std::type_identity< Target >{ } ) ) \
-  } );
+  SL_using_m name( this Lmb&& lmb, std::type_identity< Target > = { } )                            \
+      SL_expr_equiv( ::short_lambda::lambda{ details::demux(                                       \
+          details::bind_back( function_object::name, std::type_identity< Target >{ } ),            \
+          std::forward< Lmb >( lmb ) ) } );
 
     SL_lambda_member_cast_op_named( const_cast_ )
     SL_lambda_member_cast_op_named( static_cast_ )
@@ -766,15 +763,9 @@ namespace short_lambda {
 #undef SL_lambda_member_unary_op_named
 
     template < bool Id = false, class Lmb >
-    SL_using_m decltype_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
-      [lhs{ std::forward< Lmb >(
-          lmb ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&... args )
-          SL_expr_equiv_declval(
-              ( function_object::decltype_( SL_forward_like_app( std::declval< Lmb >( ) ),
-                                            std::integral_constant< bool, Id >{ } ) ),
-              function_object::decltype_( SL_forward_like_app( lhs ),
-                                          std::integral_constant< bool, Id >{ } ) )
-    } );
+    SL_using_m decltype_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda{ details::demux(
+        details::bind_back( function_object::decltype_, std::integral_constant< bool, Id >{ } ),
+        std::forward< Lmb >( lmb ) ) } );
 
     template < class Lmb >
     SL_using_m noexcept_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
@@ -825,49 +816,19 @@ namespace short_lambda {
     /// one.
     template < class T,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::new_ > >... Args >
-    SL_using_f new_( std::type_identity< T >, Args&&... args1 ) noexcept( noexcept(
-        ::short_lambda::lambda{ [... args1{ std::declval< Args >( ) } ]< class Self, class... Ts >(
-                                    /// @note: there's a bug in clang:
-                                    /// https://github.com/llvm/llvm-project/issues/98258,
-                                    /// [[maybe_unused]] does not have effect here.
-                                    [[maybe_unused]] this Self&&,
-                                    [[maybe_unused]] Ts&&... ) {
-          return function_object::new_(
-              std::type_identity< T >{ },
-              std::forward< Args >( args1 )( std::declval< Ts >( )... )... );
-        } } ) ) -> decltype( auto )
-      requires ( requires {
-        ( (void) SL_decay_copy( args1 ), ... );
-        requires (
-            details::first_satisfy< details::lpartial< details::is_same, self_t >::template type,
-                                    std::remove_cvref_t< Args >... > );
-      } )
-    {
-      return ::short_lambda::lambda {
-        [... args1{ std::forward< Args >(
-            args1 ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&... args )
-            SL_expr_equiv_declval(
-                ( function_object::new_( std::type_identity< T >{ },
-                                         SL_forward_like_app( std::declval< Args >( ) )... ) ),
-                function_object::new_( std::type_identity< T >{ }, SL_forward_like_app( args1 )... ) )
-      };
-    }
+      requires (
+          details::first_satisfy< details::lpartial< details::is_same, self_t >::template type,
+                                  std::remove_cvref_t< Args >... > )
+    SL_using_f
+    new_( std::type_identity< T >, Args&&... args1 ) SL_expr_equiv( ::short_lambda::lambda{
+        details::demux( details::bind_front( function_object::new_, std::type_identity< T >{ } ),
+                        std::forward< Args >( args1 )... ) } )
 
     template < bool Array = false, class Lmb >
     SL_using_m delete_( this Lmb&& lmb, std::integral_constant< bool, Array > = { } )
-        noexcept( noexcept( SL_decay_copy( std::declval< Lmb >( ) ) ) ) -> decltype( auto )
-      requires requires { SL_decay_copy( std::declval< Lmb >( ) ); }
-    {
-      return ::short_lambda::lambda{
-          [lhs{ std::forward< Lmb >(
-              lmb ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&...
-              args ) SL_expr_equiv_declval(
-                  ( function_object::delete_( SL_forward_like_app( std::declval< Lmb >( ) ),
-                                              std::integral_constant< bool, Array >{ } ) ),
-                  function_object::delete_( SL_forward_like_app( lhs ),
-                                            std::integral_constant< bool, Array >{ } ) )
-      };
-    }
+        SL_expr_equiv( ::short_lambda::lambda{ details::demux(
+            details::bind_back( function_object::delete_, std::integral_constant< bool, Array >{ } ),
+            std::forward< Lmb >( lmb ) ) } )
   };
 
   inline namespace factory {
