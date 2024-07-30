@@ -4,7 +4,7 @@ set_allowedmodes("debug", "release")
 
 set_warnings("allextra", "error")
 
-add_rules("mode.release")
+add_rules("mode.release", "mode.debug")
 
 rule("set-flags")
 on_config(function(target)
@@ -27,6 +27,13 @@ rule_end()
 add_rules("set-flags")
 
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
+
+option("enable_module")
+do
+    set_default(false)
+    set_showmenu(true)
+end
+option_end()
 
 if has_config("enable_module") then
     target("short-lambda.module")

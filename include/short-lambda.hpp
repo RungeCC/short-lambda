@@ -90,6 +90,9 @@ namespace short_lambda::details {
   concept any_satisfy = ( U< std::remove_cvref_t< Ts > >::value || ... );
 
   template < template < class... > class U, class... Ts >
+  concept all_satisfy = ( U< std::remove_cvref_t< Ts > >::value && ... );
+
+  template < template < class... > class U, class... Ts >
   struct is_first_satisfy: std::false_type { };
 
   template < template < class... > class U, class A, class... Ts >
@@ -190,7 +193,6 @@ namespace short_lambda::details {
   } SL_using_st( bind_back ){ };
 
 } // namespace short_lambda::details
-
 
 namespace short_lambda {
   template < class CallableT > struct lambda;
@@ -335,7 +337,6 @@ namespace short_lambda {
     SL_define_binary_op( right_shift_with, ( >>= ) )
 #undef SL_define_binary_op // undefine
 
-
 #define SL_define_unary_op( name, op )                                                             \
   struct name##_t {                                                                                \
     template < class Operand >                                                                     \
@@ -368,7 +369,6 @@ namespace short_lambda {
       template < class Operand >
       SL_using_paren( Operand&& arg ) SL_expr_equiv( std::forward< Operand >( arg ).operator->( ) )
     } SL_using_st( object_member_access_of_pointer ){ };
-
 
     // some un-overloadable operator
     struct pointer_member_access_t { // a.*b
@@ -583,6 +583,118 @@ namespace short_lambda {
     } SL_using_st( typeof_unqual_ ){ };
 
   } // namespace function_object
+
+  inline namespace factory {
+    template < details::size_t idx > struct projector_t {
+      template < class... Ts >
+      constexpr inline static bool construct_from_input
+          = not std::is_lvalue_reference_v< std::tuple_element_t< idx, std::tuple< Ts&&... > > >;
+
+#if defined( __cpp_static_call_operator )
+      template < class... Ts >
+        requires ( sizeof...( Ts ) > idx )
+      constexpr static typename std::conditional_t<
+          construct_from_input< Ts... >,
+          std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
+          std::tuple_element_t< idx, std::tuple< Ts&&... > > >
+      operator( )( Ts&&... args ) SL_expr_equiv_no_ret(
+          std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
+#else
+      template < class... Ts >
+        requires ( sizeof...( Ts ) > idx )
+      constexpr typename std::conditional_t<
+          construct_from_input< Ts... >,
+          std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
+          std::tuple_element_t< idx, std::tuple< Ts&&... > > >
+      operator( )( Ts&&... args ) const SL_expr_equiv_no_ret(
+          std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
+#endif
+    };
+
+    template < template < class > class Target >
+    struct lift_t { // forwarding construct received argument
+      template < class T > static bool consteval inline constraint_of( ) noexcept {
+        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+          return requires {
+            ( Target{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
+                          [[maybe_unused]] this Self&& self,
+                          [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
+              return static_cast< T >( *v );
+            } } );
+          };
+        } else {
+          return requires {
+            ( Target{
+                [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
+                    [[maybe_unused]] this Self&& self,
+                    [[maybe_unused]] Ts&&... args ) noexcept( noexcept( SL_decay_copy( std::declval< T& >( ) ) ) )
+                    -> auto { return v; } } );
+          };
+        }
+      }
+      template < class T > static bool consteval inline noexcept_of( ) noexcept {
+        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+          return noexcept(
+              Target{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
+                          [[maybe_unused]] this Self&& self,
+                          [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
+                return static_cast< T >( *v );
+              } } );
+        } else {
+          return noexcept( Target{
+              [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
+                  [[maybe_unused]] this Self&& self,
+                  [[maybe_unused]] Ts&&... args ) noexcept( noexcept( SL_decay_copy( std::declval< T& >( ) ) ) )
+                  -> auto { return v; } } );
+        }
+      }
+
+      template < class T >
+      SL_using_paren( T&& value ) noexcept( noexcept_of< T >( ) )
+          ->decltype( auto )
+        requires ( constraint_of< T >( ) )
+      {
+        /// @note: there's a bug in gcc:
+        /// [[maybe_unused]] does not have effect here.
+        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
+          return ( Target{
+              [ v = std::addressof( value ) ]< class Self, class... Ts >(
+                  [[maybe_unused]] this Self&& self,
+                  Ts&&... ) noexcept -> decltype( auto ) { return static_cast< T >( *v ); } } );
+        } else {
+          return ( Target{
+              [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
+                  [[maybe_unused]] this Self&& self,
+                  Ts&&... ) noexcept( noexcept( SL_decay_copy( std::declval< T& >( ) ) ) ) -> auto {
+                return v;
+              } } );
+        }
+      }
+    };
+
+    template < class T > struct storage_t {
+      T value;
+
+      template < class U, class Self >
+      constexpr operator U&( [[maybe_unused]] this Self&& self )
+          SL_expr_equiv_no_ret( details::forward_like< Self >( self.value ) )
+
+      template < class... Ts, class Self >
+      SL_using_m operator( )( [[maybe_unused]] this Self&& self, [[maybe_unused]] Ts&&... args )
+          SL_expr_equiv( details::forward_like< Self >( self.value ) )
+    };
+
+    template < details::satisfy< std::is_default_constructible > T, details::size_t id = 0 >
+    inline storage_t< T > storage{ };
+
+    template < auto value, details::size_t id = 0 >
+    SL_using_m constant = storage_t< std::remove_cvref_t< decltype( value ) > const >{ value };
+
+    template < template < class > class Target, class U > struct coprojector_t {
+      template < class T >
+      SL_using_paren( T&& arg ) SL_expr_equiv( lift_t< Target >{ }( static_cast< U& >( arg ) ) )
+    };
+  } // namespace factory
 
   inline namespace lambda_operators {
 #define SL_lambda_binary_operator( name, op )                                                       \
@@ -806,136 +918,32 @@ namespace short_lambda {
             std::forward< Lmb >( lmb ) ) } )
   };
 
-  inline namespace factory {
-    template < details::size_t idx > struct projector_t {
-      template < class... Ts >
-      constexpr inline static bool construct_from_input
-          = not std::is_lvalue_reference_v< std::tuple_element_t< idx, std::tuple< Ts&&... > > >;
 
-#if defined( __cpp_static_call_operator )
-      template < class... Ts >
-        requires ( sizeof...( Ts ) > idx )
-      constexpr static typename std::conditional_t<
-          construct_from_input< Ts... >,
-          std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
-          std::tuple_element_t< idx, std::tuple< Ts&&... > > >
-      operator( )( Ts&&... args ) SL_expr_equiv_no_ret(
-          std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
-#else
-      template < class... Ts >
-        requires ( sizeof...( Ts ) > idx )
-      constexpr typename std::conditional_t<
-          construct_from_input< Ts... >,
-          std::remove_cvref_t< std::tuple_element_t< idx, std::tuple< Ts... > > >,
-          std::tuple_element_t< idx, std::tuple< Ts&&... > > >
-      operator( )( Ts&&... args ) const SL_expr_equiv_no_ret(
-          std::get< idx >( std::tuple< Ts... >{ std::forward< Ts >( args )... } ) )
-#endif
-    };
+  inline namespace factory_object {
 
 
-    struct lift_t { // forwarding construct received argument
-      template < class T > static bool consteval inline constraint_of( ) noexcept {
-        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
-          return requires {
-            ( lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
-                          [[maybe_unused]] this Self&& self,
-                          [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-              return static_cast< T >( *v );
-            } } );
-          };
-        } else {
-          return requires {
-            ( lambda{
-                [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
-                    [[maybe_unused]] this Self&& self,
-                    [[maybe_unused]] Ts&&... args ) noexcept( noexcept( SL_decay_copy( std::declval< T& >( ) ) ) )
-                    -> auto { return v; } } );
-          };
-        }
-      }
-      template < class T > static bool consteval inline noexcept_of( ) noexcept {
-        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
-          return noexcept(
-              lambda{ [ v = std::addressof( std::declval< T& >( ) ) ]< class Self, class... Ts >(
-                          [[maybe_unused]] this Self&& self,
-                          [[maybe_unused]] Ts&&... args ) noexcept -> decltype( auto ) {
-                return static_cast< T >( *v );
-              } } );
-        } else {
-          return noexcept( lambda{
-              [ v{ std::declval< T& >( ) } ]< class Self, class... Ts >(
-                  [[maybe_unused]] this Self&& self,
-                  [[maybe_unused]] Ts&&... args ) noexcept( noexcept( SL_decay_copy( std::declval< T& >( ) ) ) )
-                  -> auto { return v; } } );
-        }
-      }
-
-      template < class T >
-      SL_using_paren( T&& value ) noexcept( noexcept_of< T >( ) )
-          ->decltype( auto )
-        requires ( constraint_of< T >( ) )
-      {
-        /// @note: there's a bug in gcc:
-        /// [[maybe_unused]] does not have effect here.
-        if constexpr ( std::is_lvalue_reference_v< T&& > ) {
-          return ( lambda{
-              [ v = std::addressof( value ) ]< class Self, class... Ts >(
-                  [[maybe_unused]] this Self&& self,
-                  Ts&&... ) noexcept -> decltype( auto ) { return static_cast< T >( *v ); } } );
-        } else {
-          return ( lambda{
-              [ v{ std::forward< T >( value ) } ]< class Self, class... Ts >(
-                  [[maybe_unused]] this Self&& self,
-                  Ts&&... ) noexcept( noexcept( SL_decay_copy( std::declval< T& >( ) ) ) ) -> auto {
-                return v;
-              } } );
-        }
-      }
-    };
-
-    SL_using_v $0 = lambda{ projector_t< 0 >{} };
-    SL_using_v $1 = lambda{ projector_t< 1 >{} };
-    SL_using_v $2 = lambda{ projector_t< 2 >{} };
-    SL_using_v $3 = lambda{ projector_t< 3 >{} };
-    SL_using_v $4 = lambda{ projector_t< 4 >{} };
-    SL_using_v $5 = lambda{ projector_t< 5 >{} };
-    SL_using_v $6 = lambda{ projector_t< 6 >{} };
-    SL_using_v $7 = lambda{ projector_t< 7 >{} };
-    SL_using_v $8 = lambda{ projector_t< 8 >{} };
-    SL_using_v $9 = lambda{ projector_t< 9 >{} };
-    SL_using_v $  = lift_t{ };
-
-    template < class U > struct coprojector_t {
-      template < class T > SL_using_paren( T&& arg ) SL_expr_equiv( $( static_cast< U& >( arg ) ) )
-    };
-
-    template < class T > struct storage_t {
-      T value;
-
-      template < class U, class Self >
-      constexpr operator U&( [[maybe_unused]] this Self&& self )
-          SL_expr_equiv_no_ret( details::forward_like< Self >( self.value ) )
-
-      template < class... Ts, class Self >
-      SL_using_m operator( )( [[maybe_unused]] this Self&& self, [[maybe_unused]] Ts&&... args )
-          SL_expr_equiv( details::forward_like< Self >( self.value ) )
-    };
-
-    template < details::satisfy< std::is_default_constructible > T, details::size_t id = 0 >
-    inline storage_t< T > storage{ };
-
-    template < auto value, details::size_t id = 0 >
-    SL_using_m constant = storage_t< std::remove_cvref_t< decltype( value ) > const >{ value };
+    SL_using_v $0 = lambda{ factory::projector_t< 0 >{} };
+    SL_using_v $1 = lambda{ factory::projector_t< 1 >{} };
+    SL_using_v $2 = lambda{ factory::projector_t< 2 >{} };
+    SL_using_v $3 = lambda{ factory::projector_t< 3 >{} };
+    SL_using_v $4 = lambda{ factory::projector_t< 4 >{} };
+    SL_using_v $5 = lambda{ factory::projector_t< 5 >{} };
+    SL_using_v $6 = lambda{ factory::projector_t< 6 >{} };
+    SL_using_v $7 = lambda{ factory::projector_t< 7 >{} };
+    SL_using_v $8 = lambda{ factory::projector_t< 8 >{} };
+    SL_using_v $9 = lambda{ factory::projector_t< 9 >{} };
+    SL_using_v $  = factory::lift_t< /*Target*/ ::short_lambda::lambda >{ };
 
     template < class U, details::size_t id = 0 >
-    SL_using_m $_ = coprojector_t< U >{ }( storage< U, id > );
+    SL_using_v $_
+        = factory::coprojector_t< /*Target*/ ::short_lambda::lambda, U >{ }( storage< U, id > );
 
     template < auto value, details::size_t id = 0 >
-    SL_using_m $c
-        = coprojector_t< std::remove_reference_t< decltype( value ) > >{ }( constant< value, id > );
+    SL_using_v $c = factory::coprojector_t< /*Target*/ ::short_lambda::lambda,
+                                            std::remove_reference_t< decltype( value ) > >{ }(
+        factory::constant< value, id > );
 
-  } // namespace factory
+  } // namespace factory_object
 
   inline namespace hkt {
     template < template < class > class > struct fmap_t; // Functor
@@ -981,7 +989,7 @@ namespace short_lambda {
                                 args0 )( std::forward< Ts1 >( args1 )... )... ) )
                   } ) )
     };
-    template <> struct pure_t< lambda >: lift_t { };
+    template <> struct pure_t< lambda >: factory::lift_t< lambda > { };
     template <> struct bind_t< lambda > {
       // bind<lambda> :: lambda<a>... -> (a... -> lambda<b>) -> lambda<b>
       template < details::satisfy< is_short_lambda >... Ts1 >
