@@ -42,8 +42,6 @@ static_assert( false, "unsupported compiler" );
 #define SL_expr_equiv_declval( req, ... )                                                          \
   SL_expr_equiv_spec( req ) SL_expr_equiv_bare( __VA_ARGS__ )
 
-#define SL_forward_like_app( ... )                                                                 \
-  details::forward_like< Self >( __VA_ARGS__ )( std::forward< Ts >( args )... )
 #define SL_remove_parenthesis_1( ... ) __VA_ARGS__
 #define SL_remove_parenthesis_0( X )   X
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
@@ -245,7 +243,7 @@ namespace short_lambda {
     subscript   = 39,
     address_of  = 40,
     indirection,
-    object_member_access, // TBD
+    object_member_access,
     pointer_member_access,
     object_member_access_of_pointer,
     pointer_member_access_of_pointer = 45, // ^ member access
@@ -260,8 +258,8 @@ namespace short_lambda {
     typeid_,
     throw_,
     noexcept_,
-    new_,           // TBD
-    delete_,        // TBD
+    new_,
+    delete_,
     co_await_ = 59, // ^ special, v extra, provide by me
     then      = 60, // expression-equivalent to `(void)lhs, rhs`
     typeof_,        // typeof_(x) := decltype((x)), they are c23 keywords, so we add a _ suffix
@@ -755,21 +753,22 @@ namespace short_lambda {
     SL_using_m operator( )( [[maybe_unused]] this Self&& self, Ts&&... args ) SL_expr_equiv(
         details::forward_like< Self >( self.storage )( std::forward< Ts >( args )... ) )
 
-
     template < class Lmb,
                details::satisfy< operator_with_lambda_enabled, operators_t< operators::then > > RHS >
     SL_using_m then( this Lmb&& lmb, RHS&& rhs ) SL_expr_equiv( ::short_lambda::lambda{
         [ lhs{ std::forward< Lmb >( lmb ) },
           rhs{ std::forward< RHS >( rhs ) } ]< class Self, class... Ts >(
             [[maybe_unused]] this Self&& self,
-            Ts&&... args ) noexcept( noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) ) && noexcept( SL_forward_like_app( std::declval< RHS >( ) ) ) )
+            Ts&&... args ) noexcept( 
+              noexcept( details::forward_like< Self >( std::declval< Lmb >( ) )( std::forward< Ts >( args )... ) ) && 
+              noexcept( details::forward_like< Self >( std::declval< RHS >( ) )( std::forward< Ts >( args )... ) ) )
             -> decltype( auto )
           requires (
-              requires { SL_forward_like_app( std::declval< Lmb >( ) ); }
-              && requires { SL_forward_like_app( std::declval< RHS >( ) ); } )
+              requires { details::forward_like< Self >( std::declval< Lmb >( ) )( std::forward< Ts >( args )... ); } && 
+              requires { details::forward_like< Self >( std::declval< RHS >( ) )( std::forward< Ts >( args )... ); } )
         {
-          SL_forward_like_app( lhs );
-          return SL_forward_like_app( rhs );
+          details::forward_like<Self>( lhs )( std::forward< Ts >( args )... );
+          return details::forward_like<Self>( rhs )( std::forward< Ts >( args )... );
         } } )
 
 #define SL_lambda_member_variadic_op( name )                                                           \
@@ -805,7 +804,6 @@ namespace short_lambda {
       SL_expr_equiv( ::short_lambda::lambda{ details::demux( function_object::name,                 \
                                                              std::forward< Lmb >( lmb ),            \
                                                              std::forward< RHS >( rhs ) ) } );
-
 
     SL_lambda_member_binary_op( add_to, ( += ) )
     SL_lambda_member_binary_op( subtract_from, ( -= ) )
@@ -858,8 +856,10 @@ namespace short_lambda {
     SL_using_m noexcept_( this Lmb&& lmb ) SL_expr_equiv( ::short_lambda::lambda {
       [lmb{ std::forward< Lmb >(
           lmb ) }]< class Self, class... Ts >( [[maybe_unused]] this Self&& self, Ts&&... args )
-          SL_expr_equiv_declval( ( noexcept( SL_forward_like_app( std::declval< Lmb >( ) ) ) ),
-                                 noexcept( SL_forward_like_app( lmb ) ) )
+          SL_expr_equiv_declval(
+              ( noexcept( details::forward_like< Self >( std::declval< Lmb >( ) )(
+                  std::forward< Ts >( args )... ) ) ),
+              noexcept( details::forward_like< Self >( lmb )( std::forward< Ts >( args )... ) ) )
     } );
 
 #define SL_lambda_membedr_unary_op( name, op )                                                     \
@@ -918,9 +918,7 @@ namespace short_lambda {
             std::forward< Lmb >( lmb ) ) } )
   };
 
-
   inline namespace factory_object {
-
 
     SL_using_v $0 = lambda{ factory::projector_t< 0 >{} };
     SL_using_v $1 = lambda{ factory::projector_t< 1 >{} };
@@ -949,6 +947,7 @@ namespace short_lambda {
     template < template < class > class > struct fmap_t; // Functor
     template < template < class > class > struct pure_t; // Applicative
     template < template < class > class > struct bind_t; // Monad
+    template < template < class > class > struct join_t; // also Monad
 
     template <>
     struct fmap_t< lambda > { // fmap<lambda> :: (a ... -> b) -> lambda<a> ... -> lambda<b>
@@ -973,21 +972,32 @@ namespace short_lambda {
                     ( (void) SL_decay_copy( std::declval< Ts&& >( ) ), ... ) ), // again, we only
                                                                                 // check decay copy
                                                                                 // here.
-                  ::short_lambda::lambda {
-                    [
-                      func{ details::forward_like< Self >( func ) },
-                      ... args0{ std::forward< Ts >( args0 ) }
-                    ]< class Self1, class... Ts1 >( [[maybe_unused]] this Self1&& self1,
-                                                    Ts1&&... args1 )
-                        SL_expr_equiv_declval(
-                            ( details::forward_like< Self1 >(
-                                details::forward_like< Self >( std::declval< Func&& >( ) ) )(
-                                details::forward_like< Self1 >(
-                                    std::forward< Ts >( std::declval< Ts&& >( ) ) )(
-                                    std::forward< Ts1 >( std::declval< Ts1&& >( ) )... )... ) ),
-                            details::forward_like< Self1 >( func )( details::forward_like< Self1 >(
-                                args0 )( std::forward< Ts1 >( args1 )... )... ) )
-                  } ) )
+                  ::short_lambda::lambda{
+                      details::demux( details::forward_like< Self >( func ),
+                                      details::forward_like< Self >( args0 )... ) } ) )
+    };
+
+    template <> struct join_t< lambda > { // mux, resupply args... pack.
+      template < details::satisfy< is_short_lambda > T > // lambda<lambda<p>>
+        requires ( details::satisfy< typename T::type /*callableT*/, is_short_lambda > )
+      SL_using_paren( T&& t ) SL_expr_equiv_spec( ::short_lambda::lambda{
+          [ t{ std::forward< T >(
+              std::declval< T >( ) ) } ]< class Self, class... Args >( this Self&&, Args&&... args )
+              SL_expr_equiv_spec( details::forward_like< Self >( std::declval< T >( ) )(
+                  std::forward< Args >( args )... )( std::forward< Args >( args )... ) ) {
+                return details::forward_like< Self >( std::declval< T >( ) )(
+                    std::forward< Args >( args )... )( std::forward< Args >( args )... );
+              } } ) {
+        return ::short_lambda::lambda{
+            [ t{ std::forward< T >( t ) } ]< class Self, class... Args >( this Self&&,
+                                                                          Args&&... args )
+                SL_expr_equiv_spec( details::forward_like< Self >( std::declval< T >( ) )(
+                    std::forward< Args >( args )... )( std::forward< Args >( args )... ) ) {
+                  return details::forward_like< Self >( t )(
+                      std::forward< Args >( args )... )(
+                      std::forward< Args >( args )... );
+                } };
+      }
     };
     template <> struct pure_t< lambda >: factory::lift_t< lambda > { };
     template <> struct bind_t< lambda > {
@@ -1003,21 +1013,9 @@ namespace short_lambda {
                                     ( (void) SL_decay_copy( details::forward_like< Self >(
                                           std::declval< Ts1&& >( ) ) ),
                                       ... ) ) {
-                  return lambda {
-                    [
-                      func{ details::forward_like< Self >( func ) },
-                      ... as{ details::forward_like< Self >( as ) }
-                    ]< class Self1, class... Ts >
-                      requires ( details::satisfy<
-                                 decltype( details::forward_like< Self1 >(
-                                     details::forward_like< Self >( std::declval< Func && >( ) ) )(
-                                     details::forward_like< Self1 >( std::declval< Ts1 && >( ) )(
-                                         std::forward< Ts >( std::declval< Ts && >( ) )... )... ) ),
-                                 is_short_lambda > ) // ensure that f(a(...)...) is lambda<b>
-                    ( [[maybe_unused]] this Self1&& self1, Ts&&... args ) SL_expr_equiv(
-                        details::forward_like< Self1 >( func )( details::forward_like< Self1 >( as )(
-                            std::forward< Ts >( args )... )... )( std::forward< Ts >( args )... ) )
-                  };
+                  return join_t< lambda >{ }( // result to a lambda
+                      details::demux( std::forward< Func >( func ),
+                                      details::forward_like< Self >( as )... ) );
                 };
       }
     };
@@ -1025,6 +1023,7 @@ namespace short_lambda {
     template < template < class > class Func > SL_using_v fmap = fmap_t< Func >{ };
     template < template < class > class Func > SL_using_v pure = pure_t< Func >{ };
     template < template < class > class Func > SL_using_v bind = bind_t< Func >{ };
+    template < template < class > class Func > SL_using_v join = join_t< Func >{ };
   }; // namespace hkt
 
 } // namespace short_lambda
