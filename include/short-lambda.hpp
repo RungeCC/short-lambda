@@ -47,15 +47,9 @@ static_assert( false, "unsupported compiler" );
 #define SL_remove_parenthesis( X )     SL_remove_parenthesis_0( SL_remove_parenthesis_1 X )
 
 #define SL_using_st( name )            static constexpr inline name [[maybe_unused]]
-#if not defined( __cpp_static_call_operator )
-/// @note: msvc currently does not support `static operator()`, so we need a feature test macro here
-#  define SL_using_c [[maybe_unused]] constexpr inline auto
-#else
-#  define SL_using_c [[maybe_unused]] static constexpr inline auto
-#endif
-#define SL_using_v [[maybe_unused]] static constexpr inline auto
-#define SL_using_m [[maybe_unused]] constexpr inline auto
-#define SL_using_f [[maybe_unused]] friend constexpr inline auto
+#define SL_using_v                     [[maybe_unused]] static constexpr inline auto
+#define SL_using_m                     [[maybe_unused]] constexpr inline auto
+#define SL_using_f                     [[maybe_unused]] friend constexpr inline auto
 
 #if defined( __cpp_static_call_operator )
 #  define SL_using_paren( ... )                                                                    \
@@ -977,7 +971,7 @@ namespace short_lambda {
                                       details::forward_like< Self >( args0 )... ) } ) )
     };
 
-    template <> struct join_t< lambda > { // mux, resupply args... pack.
+    template <> struct join_t< lambda > {                // mux, resupply args... pack.
       template < details::satisfy< is_short_lambda > T > // lambda<lambda<p>>
         requires ( details::satisfy< typename T::type /*callableT*/, is_short_lambda > )
       SL_using_paren( T&& t ) SL_expr_equiv_spec( ::short_lambda::lambda{
@@ -993,8 +987,7 @@ namespace short_lambda {
                                                                           Args&&... args )
                 SL_expr_equiv_spec( details::forward_like< Self >( std::declval< T >( ) )(
                     std::forward< Args >( args )... )( std::forward< Args >( args )... ) ) {
-                  return details::forward_like< Self >( t )(
-                      std::forward< Args >( args )... )(
+                  return details::forward_like< Self >( t )( std::forward< Args >( args )... )(
                       std::forward< Args >( args )... );
                 } };
       }
